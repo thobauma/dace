@@ -81,6 +81,9 @@ class CUDACodeGen(TargetCodeGenerator):
         self._global_sdfg = sdfg
         self._toplevel_schedule = None
 
+        # Keep track of current gpu device
+        self._current_gpu_device = 1
+
         # Keep track of current "scope entry/exit" code streams for extra
         # code generation
         self.scope_entry_stream = self._initcode
@@ -217,6 +220,9 @@ int __dace_init_cuda({params}) {{
     {backend}Malloc((void **) &dev_X, 1);
     {backend}Free(dev_X);
 
+    // Set gpu_device
+    {backend}SetDevice({gpu_device});
+
     // Create {backend} streams and events
     for(int i = 0; i < {nstreams}; ++i) {{
         {backend}StreamCreateWithFlags(&dace::cuda::__streams[i], {backend}StreamNonBlocking);
@@ -252,7 +258,8 @@ void __dace_exit_cuda({params}) {{
            nstreams=max(1, self._cuda_streams),
            nevents=max(1, self._cuda_events),
            backend=self.backend,
-           backend_header=backend_header)
+           backend_header=backend_header,
+           gpu_device=self._current_gpu_device)
 
         return [self._codeobject]
 
@@ -335,7 +342,7 @@ void __dace_exit_cuda({params}) {{
         if isinstance(nodedesc, dace.data.Stream):
             return self.allocate_stream(sdfg, dfg, state_id, node,
                                         function_stream, callsite_stream)
-
+        set_device = StringIO()
         result_decl = StringIO()
         result_alloc = StringIO()
         arrsize = nodedesc.total_size
@@ -345,6 +352,9 @@ void __dace_exit_cuda({params}) {{
         ctypedef = '%s *' % nodedesc.dtype.ctype
 
         dataname = node.data
+
+        if(self._current_gpu_device != nodedesc.location['GPU']):
+            set_device.write('%ssetDevice(%s);\n'% (self.backend, nodedesc.location['GPU']))
 
         # Different types of GPU arrays
         if nodedesc.storage == dtypes.StorageType.GPU_Global:
@@ -400,10 +410,14 @@ void __dace_exit_cuda({params}) {{
                                       str(nodedesc.storage))
 
         if nodedesc.lifetime == dtypes.AllocationLifetime.Persistent:
+            function_stream.write(set_device.getvalue(), sdfg, state_id, node)
             function_stream.write(result_decl.getvalue(), sdfg, state_id, node)
+            self._frame._initcode.write(set_device.getvalue(), sdfg, state_id,
+                                        node)
             self._frame._initcode.write(result_alloc.getvalue(), sdfg, state_id,
                                         node)
         else:
+            callsite_stream.write(set_device.getvalue(), sdfg, state_id, node)
             callsite_stream.write(result_decl.getvalue(), sdfg, state_id, node)
             callsite_stream.write(result_alloc.getvalue(), sdfg, state_id, node)
 
@@ -502,9 +516,13 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                           function_stream, codestream)
 
         if nodedesc.storage == dtypes.StorageType.GPU_Global:
+            codestream.write('%ssetDevice(%s);\n' % (self.backend, nodedesc.location['GPU']), sdfg,
+                             state_id, node)
             codestream.write('%sFree(%s);\n' % (self.backend, dataname), sdfg,
                              state_id, node)
         elif nodedesc.storage == dtypes.StorageType.CPU_Pinned:
+            codestream.write('%ssetDevice(%s);\n' % (self.backend, nodedesc.location['GPU']), sdfg,
+                             state_id, node)
             codestream.write('%sFreeHost(%s);\n' % (self.backend, dataname),
                              sdfg, state_id, node)
         elif nodedesc.storage == dtypes.StorageType.GPU_Shared or \
