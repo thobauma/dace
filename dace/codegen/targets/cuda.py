@@ -365,6 +365,9 @@ void __dace_exit_cuda({params}) {{
         dataname = node.data
         self._set_gpu_device(sdfg, nodedesc, set_device)
 
+        if(self._current_gpu_device != nodedesc.location['GPU']):
+            set_device.write('%ssetDevice(%s);\n'% (self.backend, nodedesc.location['GPU']))
+
         # Different types of GPU arrays
         if nodedesc.storage == dtypes.StorageType.GPU_Global:
             result_decl.write('%s %s = nullptr;\n' % (ctypedef, dataname))
@@ -527,9 +530,13 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                           function_stream, codestream)
 
         if nodedesc.storage == dtypes.StorageType.GPU_Global:
+            codestream.write('%ssetDevice(%s);\n' % (self.backend, nodedesc.location['GPU']), sdfg,
+                             state_id, node)
             codestream.write('%sFree(%s);\n' % (self.backend, dataname), sdfg,
                              state_id, node)
         elif nodedesc.storage == dtypes.StorageType.CPU_Pinned:
+            codestream.write('%ssetDevice(%s);\n' % (self.backend, nodedesc.location['GPU']), sdfg,
+                             state_id, node)
             codestream.write('%sFreeHost(%s);\n' % (self.backend, dataname),
                              sdfg, state_id, node)
         elif nodedesc.storage == dtypes.StorageType.GPU_Shared or \
