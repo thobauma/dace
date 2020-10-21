@@ -79,7 +79,7 @@ class CUDACodeGen(TargetCodeGenerator):
         self._toplevel_schedule = None
 
         # Keep track of current gpu device
-        self._current_gpu_device = 1
+        self._current_gpu_device = 0
 
         # Keep track of current "scope entry/exit" code streams for extra
         # code generation
