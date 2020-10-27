@@ -223,6 +223,9 @@ int __dace_init_cuda({params}) {{
     // Set gpu_device
     {backend}SetDevice({gpu_device});
 
+    // Set gpu_device
+    {backend}SetDevice({gpu_device});
+
     // Create {backend} streams and events
     for(int i = 0; i < {nstreams}; ++i) {{
         {backend}StreamCreateWithFlags(&dace::cuda::__streams[i], {backend}StreamNonBlocking);
