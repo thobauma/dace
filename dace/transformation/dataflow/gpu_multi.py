@@ -8,6 +8,9 @@ from dace.sdfg import nodes
 from dace.transformation import transformation
 from dace.properties import make_properties
 
+# There is probably a better way to do this
+from dace.config import Config
+
 
 @registry.autoregister_params(singlestate=True)
 @make_properties
@@ -26,6 +29,10 @@ class MultiGPUTransformMap(transformation.Transformation):
     @staticmethod
     def can_be_applied(graph, candidate, expr_index, sdfg, strict=False):
         map_entry = graph.nodes()[candidate[MultiGPUTransformMap._map_entry]]
+
+        # Check if there is more than one GPU available:
+        # if(Config.get("compiler", "cuda", "max_number_gpus") < 2):
+        #     return False
 
         # Check if the map is one-dimensional
         if map_entry.map.range.dims() != 1:
@@ -69,6 +76,8 @@ class MultiGPUTransformMap(transformation.Transformation):
 
         map_entry = graph.nodes()[self.subgraph[MultiGPUTransformMap._map_entry]]
 
+        num_gpus = Config.get("compiler", "cuda", "max_number_gpus")
+
         # Avoiding import loops
         from dace.transformation.dataflow.strip_mining import StripMining
         from dace.transformation.dataflow.local_storage import LocalStorage
@@ -83,7 +92,7 @@ class MultiGPUTransformMap(transformation.Transformation):
                                 self.expr_index)
         stripmine.dim_idx = -1
         stripmine.new_dim_prefix = "multi_gpu"
-        stripmine.tile_size = "(" + rangeexpr + "/__number_gpus)"
+        stripmine.tile_size = "(" + rangeexpr + "/"+str(num_gpus)+")"
         stripmine.divides_evenly = True
         stripmine.apply(sdfg)
 
