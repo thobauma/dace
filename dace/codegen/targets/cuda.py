@@ -531,23 +531,23 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         else:
             raise NotImplementedError
     
-    # def _check_multiple_gpus(self,
-    #                          sdfg: SDFG,
-    #                          default_gpu=0):
-    #     max_available_gpus = int(
-    #         Config.get('compiler', 'cuda', 'max_number_gpus'))
+    def _check_multiple_gpus(self,
+                             sdfg: SDFG,
+                             default_gpu=0):
+        max_available_gpus = int(
+            Config.get('compiler', 'cuda', 'max_number_gpus'))
 
-    #     cuda_streams = {x: None for x in range(max_available_gpus)}
-    #     cuda_events = {x: None for x in range(max_available_gpus)}
+        cuda_streams = {x: None for x in range(max_available_gpus)}
+        cuda_events = {x: None for x in range(max_available_gpus)}
 
-    #     if max_available_gpus <= 2:
-    #         cuda_streams, cuda_events = self._compute_cudastreams(sdfg)
-    #         return {0:cuda_streams}, {0:cuda_events}
+        if max_available_gpus <= 2:
+            cuda_streams, cuda_events = self._compute_cudastreams(sdfg)
+            return {0:cuda_streams}, {0:cuda_events}
         
-    #     # get gpu locations:
-    #     locations = [array.location for array in sdfg.arrays.values()] + [node[0].location for node in sdfg.all_nodes_recursive() if hasattr(node[0],'location')]
-    #     unique_locations = [dict(loc) for loc in set(frozenset(dict.items()) for dict in locations) if len(loc)]
-    #     used_gpus = list(location['GPU'] for location in unique_locations if "GPU" in location)
+        # get gpu locations:
+        locations = [array.location for array in sdfg.arrays.values()] + [node[0].location for node in sdfg.all_nodes_recursive() if hasattr(node[0],'location')]
+        unique_locations = [dict(loc) for loc in set(frozenset(dict.items()) for dict in locations) if len(loc)]
+        used_gpus = list(location['GPU'] for location in unique_locations if "GPU" in location)
     
 
     def _compute_cudastreams(self,
