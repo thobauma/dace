@@ -213,16 +213,16 @@ int __dace_init_cuda({params}) {{
         printf("ERROR: Not enough {backend}-capable devices found\\n");
         return 2;
     }}
-
+    
     // Enable peer-to-peer access       
     for(int i = 0; i < {ngpus}; ++i)
     {{
         {backend}SetDevice(i));
 
-    // Initialize {backend} before we run the application
-    float *dev_X;
-    {backend}Malloc((void **) &dev_X, 1);
-    {backend}Free(dev_X);
+        // Initialize {backend} before we run the application
+        float *dev_X;
+        {backend}Malloc((void **) &dev_X, 1);
+        {backend}Free(dev_X);
 
         for(int j = 0; j < {ngpus}; ++j)
             if (i != j)
@@ -359,9 +359,10 @@ void __dace_exit_cuda({params}) {{
         ctypedef = '%s *' % nodedesc.dtype.ctype
 
         dataname = node.data
-
-        if(self._current_gpu_device != nodedesc.location['GPU']):
-            set_device.write('%ssetDevice(%s);\n'% (self.backend, nodedesc.location['GPU']))
+        if 'gpu' in nodedesc.location and (self._current_gpu_device != nodedesc.location['gpu']):
+            new_gpu = nodedesc.location['gpu']
+            set_device.write('%ssetDevice(%s);\n'% (self.backend, new_gpu))
+            self._current_gpu_device = new_gpu
 
         # Different types of GPU arrays
         if nodedesc.storage == dtypes.StorageType.GPU_Global:
@@ -518,18 +519,20 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         else:
             codestream = callsite_stream
 
+        if 'gpu' in nodedesc.location and (self._current_gpu_device != nodedesc.location['gpu']):
+            new_gpu = nodedesc.location['gpu']
+            codestream.write('%ssetDevice(%s);\n' % (self.backend, new_gpu), sdfg,
+                            state_id, node)
+            self._current_gpu_device=new_gpu
+
         if isinstance(nodedesc, dace.data.Stream):
             return self.deallocate_stream(sdfg, dfg, state_id, node,
                                           function_stream, codestream)
 
         if nodedesc.storage == dtypes.StorageType.GPU_Global:
-            codestream.write('%ssetDevice(%s);\n' % (self.backend, nodedesc.location['GPU']), sdfg,
-                             state_id, node)
             codestream.write('%sFree(%s);\n' % (self.backend, dataname), sdfg,
                              state_id, node)
         elif nodedesc.storage == dtypes.StorageType.CPU_Pinned:
-            codestream.write('%ssetDevice(%s);\n' % (self.backend, nodedesc.location['GPU']), sdfg,
-                             state_id, node)
             codestream.write('%sFreeHost(%s);\n' % (self.backend, dataname),
                              sdfg, state_id, node)
         elif nodedesc.storage == dtypes.StorageType.GPU_Shared or \
@@ -561,9 +564,6 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 gpus.add(0)
         
         return gpus, default_gpu
-    #     locations = [array.location for array in sdfg.arrays.values()] + [node[0].location for node in sdfg.all_nodes_recursive() if hasattr(node[0],'location')]
-    #     unique_locations = [dict(loc) for loc in set(frozenset(dict.items()) for dict in locations) if len(loc)]
-    #     used_gpus = list(location['GPU'] for location in unique_locations if "GPU" in location)
     
 
     def _compute_cudastreams(self,
@@ -798,6 +798,20 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     self._dispatcher, sdfg, memlet, src_node, dst_node,
                     self._cpu_codegen._packed_types))
             dims = len(copy_shape)
+
+            src_array = src_node.desc(sdfg)
+            dst_array = dst_node.desc(sdfg)
+            new_gpu = -1
+            if 'gpu' in src_array.location:
+                new_gpu=src_array.location['gpu']
+
+            if 'gpu' in dst_array.location:
+                new_gpu=dst_array.location['gpu']
+            
+            if new_gpu != self._current_gpu_device:
+                self._current_gpu_device = new_gpu
+                callsite_stream.write('%ssetDevice(%s);\n'% (self.backend, new_gpu))
+
 
             dtype = dst_node.desc(sdfg).dtype
 
@@ -1178,8 +1192,11 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             raise TypeError('Cannot schedule %s directly from non-GPU code' %
                             str(scope_entry.map.schedule))
 
+        new_gpu = -1
         # Modify thread-blocks if dynamic ranges are detected
         for node, graph in dfg_scope.all_nodes_recursive():
+            if isinstance(node, nodes.Tasklet) and 'gpu' in node.location:
+                new_gpu=node.location['gpu']
             if isinstance(node, nodes.MapEntry):
                 smap = node.map
                 if (smap.schedule == dtypes.ScheduleType.GPU_ThreadBlock
@@ -1380,6 +1397,10 @@ int dace_number_blocks = ((int) ceil({fraction} * dace_number_SMs)) * {occupancy
                     sdfg, e.data, False, e.dst_conn,
                     e.dst.in_connectors[e.dst_conn]), sdfg, state_id,
                 scope_entry)
+
+        if self._current_gpu_device != new_gpu:
+            self._localcode.write('%ssetDevice(%s);\n'% (self.backend, new_gpu))
+            self._current_gpu_device = new_gpu
 
         self._localcode.write(
             '''
