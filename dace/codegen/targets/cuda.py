@@ -81,7 +81,7 @@ class CUDACodeGen(TargetCodeGenerator):
         self._toplevel_schedule = None
 
         # Keep track of current gpu device
-        self._current_gpu_device = 0
+        self._gpus, self._current_gpu_device = self._check_multiple_gpus(sdfg)
 
         # Keep track of current "scope entry/exit" code streams for extra
         # code generation
@@ -208,19 +208,26 @@ int __dace_init_cuda({params}) {{
                "not found\\n");
         return 1;
     }}
-    if (count == 0)
+    if (count >= {ngpus})
     {{
-        printf("ERROR: No {backend}-capable devices found\\n");
+        printf("ERROR: Not enough {backend}-capable devices found\\n");
         return 2;
     }}
+
+    // Enable peer-to-peer access       
+    for(int i = 0; i < {ngpus}; ++i)
+    {{
+        {backend}SetDevice(i));
 
     // Initialize {backend} before we run the application
     float *dev_X;
     {backend}Malloc((void **) &dev_X, 1);
     {backend}Free(dev_X);
 
-    // Set gpu_device
-    {backend}SetDevice({gpu_device});
+        for(int j = 0; j < {ngpus}; ++j)
+            if (i != j)
+                {backend}DeviceEnablePeerAccess(j, 0);
+    }} 
 
     // Create {backend} streams and events
     for(int i = 0; i < {nstreams}; ++i) {{
@@ -258,7 +265,8 @@ void __dace_exit_cuda({params}) {{
            nevents=max(1, self._cuda_events),
            backend=self.backend,
            backend_header=backend_header,
-           gpu_device=self._current_gpu_device)
+           gpu_device=self._current_gpu_device,
+           ngpus=len(self._gpus))
 
         return [self._codeobject]
 
@@ -530,20 +538,29 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         else:
             raise NotImplementedError
     
-    # def _check_multiple_gpus(self,
-    #                          sdfg: SDFG,
-    #                          default_gpu=0):
-    #     max_available_gpus = int(
-    #         Config.get('compiler', 'cuda', 'max_number_gpus'))
+    def _check_multiple_gpus(self,
+                             sdfg: SDFG,
+                             default_gpu=-1):
+        """ Checks how many gpus are used in the sdfg and sets the default gpu
+            to the lowest used gpu id if default_gpu=-1, otherwise it sets the
+            default to the default_gpu.
+            :param sdfg: the sdfg to modify.
+            :param default_gpu: The default gpu.
+            :return: set of used gpus, default gpu
+        """
+        gpus = set()
+        for _,_,desc in sdfg.arrays_recursive():
+            if 'gpu' in desc.location:
+                gpus.add(desc.location['gpu'])
 
-    #     cuda_streams = {x: None for x in range(max_available_gpus)}
-    #     cuda_events = {x: None for x in range(max_available_gpus)}
-
-    #     if max_available_gpus <= 2:
-    #         cuda_streams, cuda_events = self._compute_cudastreams(sdfg)
-    #         return {0:cuda_streams}, {0:cuda_events}
+        if default_gpu == -1:
+            if (len(gpus)):
+                default_gpu=min(gpus)
+            else:
+                default_gpu = 0
+                gpus.add(0)
         
-    #     # get gpu locations:
+        return gpus, default_gpu
     #     locations = [array.location for array in sdfg.arrays.values()] + [node[0].location for node in sdfg.all_nodes_recursive() if hasattr(node[0],'location')]
     #     unique_locations = [dict(loc) for loc in set(frozenset(dict.items()) for dict in locations) if len(loc)]
     #     used_gpus = list(location['GPU'] for location in unique_locations if "GPU" in location)
