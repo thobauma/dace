@@ -560,14 +560,14 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
     
     def _set_gpu_device(self,
                          sdfg: SDFG,
-                         node_nodedesc,
+                         node_array,
                          code):
         """ Checks if the codegenerator is on the correct device. If it is on
             the correct device it does nothing, otherwise it writes setDevice
             into the code and updates self._current_gpu_device
             :param sdfg: The sdfg we are looking at.
-            :param node_nodedesc: either an AccessNode, a Tasklet, or an array,
-                                  from which on we check the location parameter.
+            :param node_array: either an AccessNode, a Tasklet, or an array,
+                               from which we check the location parameter.
             :param code: CodeIoStream to which setDevice is written if needed.
         """
         gpu_location = -1
