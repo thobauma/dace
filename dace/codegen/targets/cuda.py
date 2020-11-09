@@ -359,10 +359,7 @@ void __dace_exit_cuda({params}) {{
         ctypedef = '%s *' % nodedesc.dtype.ctype
 
         dataname = node.data
-        if 'gpu' in nodedesc.location and (self._current_gpu_device != nodedesc.location['gpu']):
-            new_gpu = nodedesc.location['gpu']
-            set_device.write('%ssetDevice(%s);\n'% (self.backend, new_gpu))
-            self._current_gpu_device = new_gpu
+        self._set_gpu_device(sdfg, nodedesc, set_device)
 
         # Different types of GPU arrays
         if nodedesc.storage == dtypes.StorageType.GPU_Global:
@@ -519,11 +516,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         else:
             codestream = callsite_stream
 
-        if 'gpu' in nodedesc.location and (self._current_gpu_device != nodedesc.location['gpu']):
-            new_gpu = nodedesc.location['gpu']
-            codestream.write('%ssetDevice(%s);\n' % (self.backend, new_gpu), sdfg,
-                            state_id, node)
-            self._current_gpu_device=new_gpu
+        self._set_gpu_device(sdfg, nodedesc, codestream)
 
         if isinstance(nodedesc, dace.data.Stream):
             return self.deallocate_stream(sdfg, dfg, state_id, node,
@@ -825,19 +818,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     self._cpu_codegen._packed_types))
             dims = len(copy_shape)
 
-            src_array = src_node.desc(sdfg)
-            dst_array = dst_node.desc(sdfg)
-            new_gpu = -1
-            if 'gpu' in src_array.location:
-                new_gpu=src_array.location['gpu']
-
-            if 'gpu' in dst_array.location:
-                new_gpu=dst_array.location['gpu']
-            
-            if new_gpu != self._current_gpu_device:
-                self._current_gpu_device = new_gpu
-                callsite_stream.write('%ssetDevice(%s);\n'% (self.backend, new_gpu))
-
+            # need to check both, as it can be either cpu->gpu or gpu->cpu
+            self._set_gpu_device(sdfg, src_node, callsite_stream)
+            self._set_gpu_device(sdfg, dst_node, callsite_stream)
 
             dtype = dst_node.desc(sdfg).dtype
 
@@ -1423,7 +1406,7 @@ int dace_number_blocks = ((int) ceil({fraction} * dace_number_SMs)) * {occupancy
                     sdfg, e.data, False, e.dst_conn,
                     e.dst.in_connectors[e.dst_conn]), sdfg, state_id,
                 scope_entry)
-
+    
         if self._current_gpu_device != new_gpu:
             self._localcode.write('%ssetDevice(%s);\n'% (self.backend, new_gpu))
             self._current_gpu_device = new_gpu
