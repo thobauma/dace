@@ -565,6 +565,32 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         
         return gpus, default_gpu
     
+    def _set_gpu_device(self,
+                         sdfg: SDFG,
+                         node_nodedesc,
+                         code):
+        """ Checks if the codegenerator is on the correct device. If it is on
+            the correct device it does nothing, otherwise it writes setDevice
+            into the code and updates self._current_gpu_device
+            :param sdfg: The sdfg we are looking at.
+            :param node_nodedesc: either an AccessNode, a Tasklet, or an array,
+                                  from which on we check the location parameter.
+            :param code: CodeIoStream to which setDevice is written if needed.
+        """
+        gpu_location = -1
+        if isinstance(node_array, dt.Array):
+            if 'gpu' in node_array.location:
+                gpu_location = node_array.location['gpu']
+        if isinstance(node_array, nodes.AccessNode):
+            array = node_array.desc(sdfg)
+            if 'gpu' in array.location:
+                gpu_location = array.location['gpu']
+        elif isinstance(node_array, nodes.Tasklet):
+            if 'gpu' in node_array.location:
+                gpu_location = node_array.location['gpu']
+        if gpu_location != self._current_gpu_device:
+            self._current_gpu_device = gpu_location
+            code.write('%ssetDevice(%s);\n'%(self.backend, gpu_location))
 
     def _compute_cudastreams(self,
                              sdfg: SDFG,
