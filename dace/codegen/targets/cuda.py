@@ -10,6 +10,7 @@ import warnings
 import dace
 from dace.frontend import operations
 from dace import registry, subsets, symbolic, dtypes, data as dt
+from dace.config import Config
 from dace.sdfg import nodes
 from dace.sdfg import (ScopeSubgraphView, SDFG, SDFGState, scope_contains_scope,
                        is_devicelevel_gpu, is_array_stream_view,
