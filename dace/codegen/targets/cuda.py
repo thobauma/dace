@@ -585,7 +585,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         elif isinstance(node_array, nodes.Tasklet):
             if 'gpu' in node_array.location:
                 gpu_location = node_array.location['gpu']
-        if gpu_location != self._current_gpu_device:
+        if gpu_location != self._current_gpu_device and gpu_location != -1:
             self._current_gpu_device = gpu_location
             code.write('%ssetDevice(%s);\n'%(self.backend, gpu_location))
 
