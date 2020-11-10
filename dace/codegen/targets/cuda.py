@@ -209,8 +209,10 @@ int __dace_init_cuda({params}) {{
                "not found\\n");
         return 1;
     }}
-    if (count >= {ngpus})
-    {{
+
+    int gpu_devices[{ngpus}]={{{list_gpus}}};
+
+    if({backend}Success != {backend}SetValidDevices(gpu_devices, {ngpus})){{
         printf("ERROR: Not enough {backend}-capable devices found\\n");
         return 2;
     }}
@@ -218,7 +220,7 @@ int __dace_init_cuda({params}) {{
     // Enable peer-to-peer access       
     for(int i = 0; i < {ngpus}; ++i)
     {{
-        {backend}SetDevice(i));
+        {backend}SetDevice(gpu_devices[i]));
 
         // Initialize {backend} before we run the application
         float *dev_X;
@@ -227,7 +229,7 @@ int __dace_init_cuda({params}) {{
 
         for(int j = 0; j < {ngpus}; ++j)
             if (i != j)
-                {backend}DeviceEnablePeerAccess(j, 0);
+                {backend}DeviceEnablePeerAccess(gpu_devices[j], 0);
     }} 
 
     // Create {backend} streams and events
@@ -267,7 +269,8 @@ void __dace_exit_cuda({params}) {{
            backend=self.backend,
            backend_header=backend_header,
            gpu_device=self._current_gpu_device,
-           ngpus=len(self._gpus))
+           ngpus=len(self._gpus),
+           list_gpus=", ".join(map(str,self._gpus,)))
 
         return [self._codeobject]
 
