@@ -212,7 +212,7 @@ int __dace_init_cuda({params}) {{
 
     int gpu_devices[{ngpus}]={{{list_gpus}}};
 
-    if({backend}Success != {backend}SetValidDevices(gpu_devices, {ngpus})){{
+    if({backend}SetValidDevices(gpu_devices, {ngpus}) != {backend}Success){{
         printf("ERROR: Not enough {backend}-capable devices found\\n");
         return 2;
     }}
