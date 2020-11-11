@@ -310,7 +310,7 @@ required:
                         title: Maximal number available GPUs
                         description: >
                             Maximal number of GPUs that are available, needed
-                            for the MultiGPUTransformMap.
+                            for the GPUMultiTransformMap.
                         default: 1
 
                     max_concurrent_streams:
