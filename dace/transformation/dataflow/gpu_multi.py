@@ -1,5 +1,5 @@
 # Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
-""" Contains the MultiGPUTransformMap transformation. """
+""" Contains the GPUMultiTransformMap transformation. """
 
 from dace import dtypes, registry
 from dace.sdfg import has_dynamic_map_inputs
@@ -14,7 +14,7 @@ from dace.config import Config
 
 @registry.autoregister_params(singlestate=True)
 @make_properties
-class MultiGPUTransformMap(transformation.Transformation):
+class GPUMultiTransformMap(transformation.Transformation):
 
     _map_entry = nodes.MapEntry(nodes.Map("", [], []))
 
@@ -24,11 +24,11 @@ class MultiGPUTransformMap(transformation.Transformation):
 
     @staticmethod
     def expressions():
-        return [sdutil.node_path_graph(MultiGPUTransformMap._map_entry)]
+        return [sdutil.node_path_graph(GPUMultiTransformMap._map_entry)]
 
     @staticmethod
     def can_be_applied(graph, candidate, expr_index, sdfg, strict=False):
-        map_entry = graph.nodes()[candidate[MultiGPUTransformMap._map_entry]]
+        map_entry = graph.nodes()[candidate[GPUMultiTransformMap._map_entry]]
 
         # Check if there is more than one GPU available:
         # if(Config.get("compiler", "cuda", "max_number_gpus") < 2):
@@ -67,14 +67,14 @@ class MultiGPUTransformMap(transformation.Transformation):
 
     @staticmethod
     def match_to_str(graph, candidate):
-        map_entry = graph.nodes()[candidate[MultiGPUTransformMap._map_entry]]
+        map_entry = graph.nodes()[candidate[GPUMultiTransformMap._map_entry]]
 
         return map_entry.map.label
 
     def apply(self, sdfg):
         graph = sdfg.nodes()[self.state_id]
 
-        map_entry = graph.nodes()[self.subgraph[MultiGPUTransformMap._map_entry]]
+        map_entry = graph.nodes()[self.subgraph[GPUMultiTransformMap._map_entry]]
 
         num_gpus = Config.get("compiler", "cuda", "max_number_gpus")
 
@@ -85,7 +85,7 @@ class MultiGPUTransformMap(transformation.Transformation):
         rangeexpr = str(map_entry.map.range.num_elements())
 
         stripmine_subgraph = {
-            StripMining._map_entry: self.subgraph[MultiGPUTransformMap._map_entry]
+            StripMining._map_entry: self.subgraph[GPUMultiTransformMap._map_entry]
         }
         sdfg_id = sdfg.sdfg_id
         stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
@@ -96,7 +96,7 @@ class MultiGPUTransformMap(transformation.Transformation):
         stripmine.divides_evenly = True
         stripmine.apply(sdfg)
 
-        # Find all in-edges that lead to candidate[MultiGPUTransformMap._map_entry]
+        # Find all in-edges that lead to candidate[GPUMultiTransformMap._map_entry]
         outer_map = None
         edges = [
             e for e in graph.in_edges(map_entry)
@@ -112,7 +112,7 @@ class MultiGPUTransformMap(transformation.Transformation):
         for e in edges:
             in_local_storage_subgraph = {
                 LocalStorage._node_a: graph.node_id(outer_map),
-                LocalStorage._node_b: self.subgraph[MultiGPUTransformMap._map_entry]
+                LocalStorage._node_b: self.subgraph[GPUMultiTransformMap._map_entry]
             }
             sdfg_id = sdfg.sdfg_id
             in_local_storage = LocalStorage(sdfg_id, self.state_id,

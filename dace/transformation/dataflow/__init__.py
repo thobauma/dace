@@ -38,7 +38,7 @@ from .copy_to_device import CopyToDevice
 from .gpu_transform import GPUTransformMap
 from .gpu_transform_local_storage import GPUTransformLocalStorage
 from .mpi import MPITransformMap
-from .gpu_multi import MultiGPUTransformMap
+from .gpu_multi import GPUMultiTransformMap
 
 # Algorithmic
 from .matrix_product_transpose import MatrixProductTranspose
