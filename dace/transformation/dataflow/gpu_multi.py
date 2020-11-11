@@ -39,7 +39,7 @@ class GPUMultiTransformMap(transformation.Transformation):
             return False
 
         # We cannot transform a map which is already of schedule type GPU_Multi
-        if map_entry.map.schedule == dtypes.ScheduleType.GPU_Multi:
+        if map_entry.map.schedule == dtypes.ScheduleType.GPU_Multiple:
             return False
 
         # We cannot transform a map which is already inside a GPU map, or in
@@ -106,7 +106,7 @@ class GPUMultiTransformMap(transformation.Transformation):
         outer_map = edges[0].src
 
         # Add MPI schedule attribute to outer map
-        outer_map.map._schedule = dtypes.ScheduleType.GPU_Multi
+        outer_map.map._schedule = dtypes.ScheduleType.GPU_Multiple
 
         # Now create a transient for each array
         for e in edges:
