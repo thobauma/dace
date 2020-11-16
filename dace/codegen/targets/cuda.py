@@ -218,7 +218,7 @@ int __dace_init_cuda({params}) {{
     for(int i = 0; i < {ngpus}; ++i)
     {{
 
-        if({backend}SetDevice(gpu_devices[i])) != {backend}Success)
+        if({backend}SetDevice(gpu_devices[i]) != {backend}Success)
         {{
             printf("ERROR: Not enough {backend}-capable devices found\\n");
             return 2;
