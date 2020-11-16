@@ -214,11 +214,11 @@ int __dace_init_cuda({params}) {{
 
     int gpu_devices[{ngpus}]={{{list_gpus}}};
 
-    // Enable peer-to-peer access       
+    // Enable peer-to-peer access
     for(int i = 0; i < {ngpus}; ++i)
     {{
-        
-        if({backend}SetDevice(gpu_devices[i])) != {backend}Success) 
+
+        if({backend}SetDevice(gpu_devices[i])) != {backend}Success)
         {{
             printf("ERROR: Not enough {backend}-capable devices found\\n");
             return 2;
@@ -243,7 +243,7 @@ int __dace_init_cuda({params}) {{
                 {backend}DeviceEnablePeerAccess(gpu_devices[j], 0);
             }}
         }}
-    }} 
+    }}
 
 
     {initcode}
