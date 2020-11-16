@@ -214,33 +214,37 @@ int __dace_init_cuda({params}) {{
 
     int gpu_devices[{ngpus}]={{{list_gpus}}};
 
-    if({backend}SetValidDevices(gpu_devices, {ngpus}) != {backend}Success){{
-        printf("ERROR: Not enough {backend}-capable devices found\\n");
-        return 2;
-    }}
-    
     // Enable peer-to-peer access       
     for(int i = 0; i < {ngpus}; ++i)
     {{
-        {backend}SetDevice(gpu_devices[i]));
+        
+        if({backend}SetDevice(gpu_devices[i])) != {backend}Success) 
+        {{
+            printf("ERROR: Not enough {backend}-capable devices found\\n");
+            return 2;
+        }}
 
         // Initialize {backend} before we run the application
         float *dev_X;
         {backend}Malloc((void **) &dev_X, 1);
         {backend}Free(dev_X);
 
-        for(int j = 0; j < {ngpus}; ++j)
-            if (i != j)
+        // Create {backend} streams and events
+        for(int i = 0; i < {nstreams}; ++i) {{
+            {backend}StreamCreateWithFlags(&dace::cuda::__streams[i], {backend}StreamNonBlocking);
+        }}
+        for(int i = 0; i < {nevents}; ++i) {{
+            {backend}EventCreateWithFlags(&dace::cuda::__events[i], {backend}EventDisableTiming);
+        }}
+
+        // Enable peer access
+        for(int j = 0; j < {ngpus}; ++j) {{
+            if (i != j) {{
                 {backend}DeviceEnablePeerAccess(gpu_devices[j], 0);
+            }}
+        }}
     }} 
 
-    // Create {backend} streams and events
-    for(int i = 0; i < {nstreams}; ++i) {{
-        {backend}StreamCreateWithFlags(&dace::cuda::__streams[i], {backend}StreamNonBlocking);
-    }}
-    for(int i = 0; i < {nevents}; ++i) {{
-        {backend}EventCreateWithFlags(&dace::cuda::__events[i], {backend}EventDisableTiming);
-    }}
 
     {initcode}
 
