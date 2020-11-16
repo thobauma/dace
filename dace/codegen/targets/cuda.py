@@ -581,11 +581,6 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             if 'gpu' in node_or_array.location:
                 gpu_location = node_or_array.location['gpu']
         if gpu_location != -1:
-                gpu_location = array.location['gpu']
-        elif isinstance(node_array, nodes.Tasklet):
-            if 'gpu' in node_array.location:
-                gpu_location = node_array.location['gpu']
-        if gpu_location != self._current_gpu_device and gpu_location != -1:
             self._current_gpu_device = gpu_location
             code.write('%sSetDevice(%s);\n'%(self.backend, gpu_location))
 
@@ -1205,11 +1200,11 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             raise TypeError('Cannot schedule %s directly from non-GPU code' %
                             str(scope_entry.map.schedule))
 
-        new_gpu = -1
+        node_tasklet = None
         # Modify thread-blocks if dynamic ranges are detected
         for node, graph in dfg_scope.all_nodes_recursive():
             if isinstance(node, nodes.Tasklet) and 'gpu' in node.location:
-                new_gpu=node.location['gpu']
+                node_tasklet = node
             if isinstance(node, nodes.MapEntry):
                 smap = node.map
                 if (smap.schedule == dtypes.ScheduleType.GPU_ThreadBlock
@@ -1411,9 +1406,7 @@ int dace_number_blocks = ((int) ceil({fraction} * dace_number_SMs)) * {occupancy
                     e.dst.in_connectors[e.dst_conn]), sdfg, state_id,
                 scope_entry)
     
-        if self._current_gpu_device != new_gpu:
-            self._localcode.write('%ssetDevice(%s);\n'% (self.backend, new_gpu))
-            self._current_gpu_device = new_gpu
+        self._set_gpu_device(sdfg, node_tasklet, self._localcode)
 
         self._localcode.write(
             '''
