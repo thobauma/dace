@@ -1,4 +1,6 @@
 # Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
+from platform import node
+from typing import Union
 from six import StringIO
 import ast
 import ctypes
