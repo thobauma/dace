@@ -824,8 +824,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             dims = len(copy_shape)
 
             # need to check both, as it can be either cpu->gpu or gpu->cpu
-            self._set_gpu_device(sdfg, src_node, callsite_stream)
-            self._set_gpu_device(sdfg, dst_node, callsite_stream)
+            self._set_gpu_device(sdfg, src_node.desc(sdfg), callsite_stream)
+            self._set_gpu_device(sdfg, dst_node.desc(sdfg), callsite_stream)
 
             dtype = dst_node.desc(sdfg).dtype
 
