@@ -577,7 +577,7 @@ class TransformationHistProperty(Property):
     def to_json(self, hist):
         if hist is None:
             return None
-        return [elem.to_json() for elem in hist]
+        return [elem.to_json() if elem else None for elem in hist]
 
     def from_json(self, data, sdfg=None):
         if data is None:
@@ -586,7 +586,7 @@ class TransformationHistProperty(Property):
             raise TypeError(
                 'TransformationHistProperty expects a list input, got %s' %
                 data)
-        return [dace.serialize.from_json(elem) for elem in data]
+        return [dace.serialize.from_json(elem) if elem else None for elem in data]
 
 
 class DictProperty(Property):

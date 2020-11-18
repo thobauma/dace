@@ -120,7 +120,10 @@ def from_json(obj, context=None, known_type=None):
                         known_type.__name__)
 
     if t:
-        return _DACE_SERIALIZE_TYPES[t].from_json(obj, context=context)
+        try:
+            return _DACE_SERIALIZE_TYPES[t].from_json(obj, context=context)
+        except KeyError:
+            return None
 
     # No type was found, so treat this as a regular dictionary
     return {
