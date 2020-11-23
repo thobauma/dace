@@ -722,6 +722,10 @@ class Map(object):
                           desc="Measure execution statistics with given method",
                           default=dtypes.InstrumentationType.No_Instrumentation)
 
+    location = DictProperty(key_type=str,
+                            value_type=dace.symbolic.pystr_to_symbolic,
+                            desc='Full storage location identifier (e.g., rank, GPU ID)')
+
     def __init__(self,
                  label,
                  params,
@@ -730,7 +734,8 @@ class Map(object):
                  unroll=False,
                  collapse=1,
                  fence_instrumentation=False,
-                 debuginfo=None):
+                 debuginfo=None,
+                 location=None):
         super(Map, self).__init__()
 
         # Assign properties
@@ -741,6 +746,7 @@ class Map(object):
         self.params = params
         self.range = ndrange
         self.debuginfo = debuginfo
+        self.location = location if location is not None else {}
         self._fence_instrumentation = fence_instrumentation
 
     def __str__(self):
