@@ -1202,7 +1202,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
 
         # If not device-level code, ensure the schedule is correct
         if scope_entry.map.schedule not in (dtypes.ScheduleType.GPU_Device,
-                                            dtypes.ScheduleType.GPU_Persistent):
+                                            dtypes.ScheduleType.GPU_Persistent,
+                                            dtypes.ScheduleType.GPU_Multiple):
             raise TypeError('Cannot schedule %s directly from non-GPU code' %
                             str(scope_entry.map.schedule))
 
