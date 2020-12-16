@@ -17,10 +17,13 @@ class Subset(object):
             subset. """
         def nng(expr):
             # When dealing with set sizes, assume symbols are non-negative
-            # TODO: Fix in symbol definition, not here
-            for sym in list(expr.free_symbols):
-                expr = expr.subs({sym: sp.Symbol(sym.name, nonnegative=True)})
-            return expr
+            try:
+                # TODO: Fix in symbol definition, not here
+                for sym in list(expr.free_symbols):
+                    expr = expr.subs({sym: sp.Symbol(sym.name, nonnegative=True)})
+                return expr
+            except AttributeError:  # No free_symbols in expr
+                return expr
 
         try:
             return all([(symbolic.simplify_ext(nng(rb)) <=
@@ -177,7 +180,7 @@ class Range(Subset):
         return Range(sum_ranges)
 
     def num_elements(self):
-        return reduce(sp.mul.Mul, self.size(), 1)
+        return reduce(sp.Mul, self.size(), 1)
 
     def size(self, for_codegen=False):
         """ Returns the number of elements in each dimension. """

@@ -31,7 +31,7 @@ from dace.codegen import cppunparse
 
 
 def prod(iterable):
-    return functools.reduce(sympy.mul.Mul, iterable, 1)
+    return functools.reduce(sympy.Mul, iterable, 1)
 
 
 def _expr(val):
@@ -706,11 +706,11 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     path = graph.memlet_path(e)
                     # If leading from/to a GPU memory node, keep stream
                     if ((isinstance(path[0].src, nodes.AccessNode)
-                         and path[0].src.desc(
-                             cur_sdfg).storage == dtypes.StorageType.GPU_Global)
+                         and path[0].src.desc(cur_sdfg).storage
+                         == dtypes.StorageType.GPU_Global)
                             or (isinstance(path[-1].dst, nodes.AccessNode)
-                                and path[-1].dst.desc(cur_sdfg).storage ==
-                                dtypes.StorageType.GPU_Global)):
+                                and path[-1].dst.desc(cur_sdfg).storage
+                                == dtypes.StorageType.GPU_Global)):
                         break
                     # If leading from/to a GPU tasklet, keep stream
                     if ((isinstance(path[0].src, nodes.CodeNode)
@@ -777,12 +777,13 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
 
         if (isinstance(src_node, nodes.AccessNode)
                 and isinstance(dst_node, nodes.AccessNode)
-                and not self._in_device_code and (src_storage in [
-                    dtypes.StorageType.GPU_Global, dtypes.StorageType.CPU_Pinned
-                ] or dst_storage in [
-                    dtypes.StorageType.GPU_Global, dtypes.StorageType.CPU_Pinned
-                ]) and not (src_storage in cpu_storage_types
-                            and dst_storage in cpu_storage_types)):
+                and not self._in_device_code and
+            (src_storage
+             in [dtypes.StorageType.GPU_Global, dtypes.StorageType.CPU_Pinned]
+             or dst_storage
+             in [dtypes.StorageType.GPU_Global, dtypes.StorageType.CPU_Pinned])
+                and not (src_storage in cpu_storage_types
+                         and dst_storage in cpu_storage_types)):
             src_location = 'Device' if src_storage == dtypes.StorageType.GPU_Global else 'Host'
             dst_location = 'Device' if dst_storage == dtypes.StorageType.GPU_Global else 'Host'
 
@@ -1046,6 +1047,10 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         self._cpu_codegen.define_out_memlet(sdfg, state_dfg, state_id, src_node,
                                             dst_node, edge, function_stream,
                                             callsite_stream)
+
+    def process_out_memlets(self, *args, **kwargs):
+        # Call CPU implementation with this code generator as callback
+        self._cpu_codegen.process_out_memlets(*args, codegen=self, **kwargs)
 
     def generate_state(self, sdfg, state, function_stream, callsite_stream):
         # Two modes: device-level state and if this state has active streams
@@ -1514,7 +1519,7 @@ void  *{kname}_args[] = {{ {kargs} }};
 
         # Linearize (flatten) rest of dimensions to third
         if len(grid_size) > 3:
-            grid_size[2] = functools.reduce(sympy.mul.Mul, grid_size[2:], 1)
+            grid_size[2] = functools.reduce(sympy.Mul, grid_size[2:], 1)
             del grid_size[3:]
 
         # Extend to 3 dimensions if necessary
@@ -1591,7 +1596,7 @@ void  *{kname}_args[] = {{ {kargs} }};
 
             # Linearize (flatten) rest of dimensions to third
             if len(tbsize) > 3:
-                tbsize[2] = functools.reduce(sympy.mul.Mul, tbsize[2:], 1)
+                tbsize[2] = functools.reduce(sympy.Mul, tbsize[2:], 1)
                 del tbsize[3:]
 
             # Extend to 3 dimensions if necessary
@@ -1678,7 +1683,7 @@ void  *{kname}_args[] = {{ {kargs} }};
                 # Delinearize third dimension if necessary
                 if i == 2 and len(krange) > 3:
                     block_expr = '(blockIdx.z / (%s))' % _topy(
-                        functools.reduce(sympy.mul.Mul, kdims[3:], 1))
+                        functools.reduce(sympy.Mul, kdims[3:], 1))
                 else:
                     block_expr = 'blockIdx.%s' % _named_idx(i)
                     # If we defaulted to 32 threads per block, offset by thread ID
@@ -1699,8 +1704,7 @@ void  *{kname}_args[] = {{ {kargs} }};
                     varname = kernel_map.params[-i - 1]
                     # true dim i = z / ('*'.join(kdims[i+1:])) % kdims[i]
                     block_expr = '(blockIdx.z / (%s)) %% (%s)' % (
-                        _topy(functools.reduce(sympy.mul.Mul, kdims[i + 1:],
-                                               1)),
+                        _topy(functools.reduce(sympy.Mul, kdims[i + 1:], 1)),
                         _topy(kdims[i]),
                     )
 
@@ -1923,7 +1927,7 @@ void  *{kname}_args[] = {{ {kargs} }};
                 # Delinearize third dimension if necessary
                 if i == 2 and len(device_map_range) > 3:
                     block_expr = '(blockIdx.z / (%s))' % _topy(
-                        functools.reduce(sympy.mul.Mul, device_map_dims[3:], 1))
+                        functools.reduce(sympy.Mul, device_map_dims[3:], 1))
                 else:
                     block_expr = 'blockIdx.%s' % _named_idx(i)
                     # If we defaulted to 32 threads per block, offset by thread ID
@@ -1945,8 +1949,8 @@ void  *{kname}_args[] = {{ {kargs} }};
                     # true dim i = z / ('*'.join(kdims[i+1:])) % kdims[i]
                     block_expr = '(blockIdx.z / (%s)) %% (%s)' % (
                         _topy(
-                            functools.reduce(sympy.mul.Mul,
-                                             device_map_dims[i + 1:], 1)),
+                            functools.reduce(sympy.Mul, device_map_dims[i + 1:],
+                                             1)),
                         _topy(device_map_dims[i]),
                     )
 
@@ -2049,7 +2053,7 @@ void  *{kname}_args[] = {{ {kargs} }};
                 # Delinearize third dimension if necessary
                 if i == 2 and len(brange) > 3:
                     block_expr = '(threadIdx.z / (%s))' % _topy(
-                        functools.reduce(sympy.mul.Mul, kdims[3:], 1))
+                        functools.reduce(sympy.Mul, kdims[3:], 1))
                 else:
                     block_expr = 'threadIdx.%s' % _named_idx(i)
 
@@ -2065,8 +2069,7 @@ void  *{kname}_args[] = {{ {kargs} }};
                     varname = scope_map.params[-i - 1]
                     # true dim i = z / ('*'.join(kdims[i+1:])) % kdims[i]
                     block_expr = '(threadIdx.z / (%s)) %% (%s)' % (
-                        _topy(functools.reduce(sympy.mul.Mul, kdims[i + 1:],
-                                               1)),
+                        _topy(functools.reduce(sympy.Mul, kdims[i + 1:], 1)),
                         _topy(kdims[i]),
                     )
 
@@ -2182,10 +2185,10 @@ void  *{kname}_args[] = {{ {kargs} }};
         self._cpu_codegen.generate_node(sdfg, dfg, state_id, node,
                                         function_stream, callsite_stream)
 
-    def generate_nsdfg_header(self, sdfg, state, node, memlet_references,
-                              sdfg_label):
+    def generate_nsdfg_header(self, sdfg, state, state_id, node,
+                              memlet_references, sdfg_label):
         return 'DACE_DFI ' + self._cpu_codegen.generate_nsdfg_header(
-            sdfg, state, node, memlet_references, sdfg_label)
+            sdfg, state, state_id, node, memlet_references, sdfg_label)
 
     def generate_nsdfg_call(self, sdfg, state, node, memlet_references,
                             sdfg_label):
@@ -2193,8 +2196,9 @@ void  *{kname}_args[] = {{ {kargs} }};
                                                      memlet_references,
                                                      sdfg_label)
 
-    def generate_nsdfg_arguments(self, sdfg, state, node):
-        result = self._cpu_codegen.generate_nsdfg_arguments(sdfg, state, node)
+    def generate_nsdfg_arguments(self, sdfg, dfg, state, node):
+        result = self._cpu_codegen.generate_nsdfg_arguments(
+            sdfg, dfg, state, node)
         if self.create_grid_barrier:
             result.append(('cub::GridBarrier&', '__gbar', '__gbar'))
 
@@ -2231,6 +2235,9 @@ void  *{kname}_args[] = {{ {kargs} }};
 
         self._cpu_codegen._generate_MapExit(sdfg, dfg, state_id, node,
                                             function_stream, callsite_stream)
+
+    def make_ptr_vector_cast(self, *args, **kwargs):
+        return cpp.make_ptr_vector_cast(*args, **kwargs)
 
 
 ########################################################################
