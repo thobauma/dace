@@ -549,7 +549,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                              default_gpu=-1):
         """ Checks how many gpus are used in the sdfg and sets the default gpu
             to the lowest used gpu id if default_gpu=-1, otherwise it sets the
-            default to the default_gpu.
+            default to the default_gpu. If no gpus are specified it will use 
+            the max_number_gpus from the config files.
             :param sdfg: the sdfg to modify.
             :param default_gpu: The default gpu.
             :return: set of used gpus, default gpu
@@ -575,13 +576,15 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 desc = node.desc(graph)              
                 if 'gpu' in desc.location:
                     gpus.add(desc.location['gpu'])
-
-        if default_gpu == -1:
-            if (len(gpus)):
-                default_gpu=min(gpus)
-            else:
-                default_gpu = 0
-                gpus.add(0)
+        
+        if len(gpus)==0:
+            gpus.update(range(0,Config.get('compiler', 'cuda', 'max_number_gpus')))
+        # if default_gpu == -1:
+        #     if (len(gpus)):
+        #         default_gpu=min(gpus)
+        #     else:
+        #         default_gpu = 0
+        #         gpus.add(0)
         
         return gpus, default_gpu
     
