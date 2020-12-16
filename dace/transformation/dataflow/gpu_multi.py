@@ -90,8 +90,7 @@ class GPUMultiTransformMap(transformation.Transformation):
         stripmine = StripMining(sdfg_id, self.state_id, maptiling_subgraph,
                               self.expr_index)
         stripmine.new_dim_prefix = "gpu"
-        stripmine.tile_size = str(num_gpus)
-        stripmine.inner_map = False
+        stripmine.number_of_tiles = str(num_gpus)
         stripmine.apply(sdfg)
 
 
