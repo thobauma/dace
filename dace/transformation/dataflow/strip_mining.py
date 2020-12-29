@@ -12,7 +12,7 @@ from dace.sdfg import utils as sdutil
 from dace.symbolic import issymbolic, overapproximate, SymExpr
 from dace.transformation import transformation, helpers as xfh
 import sympy
-debug=0
+
 
 def calc_set_image_index(map_idx, map_set, array_idx):
     image = []
@@ -237,13 +237,6 @@ class StripMining(transformation.Transformation):
         tile_size = self.tile_size
         divides_evenly = self.divides_evenly
         tile_stride = self.tile_stride
-        if debug:
-            print("dim_idx",dim_idx)
-            print("new_dim_prefix",new_dim_prefix)
-            print("tile_size",tile_size)
-            print("divides_evenly",divides_evenly)
-            print("tile_stride", tile_stride)
-            print()
 
         if tile_stride is None or len(tile_stride) == 0:
             tile_stride = tile_size
@@ -255,12 +248,6 @@ class StripMining(transformation.Transformation):
         # Retrieve parameter and range of dimension to be strip-mined.
         target_dim = map_entry.map.params[dim_idx]
         td_from, td_to, td_step = map_entry.map.range[dim_idx]
-        if debug:
-            print("target_dim",target_dim)
-            print("td_from",td_from)
-            print("td_to",td_to)
-            print("td_step",td_step)
-            print()
         new_dim = self._find_new_dim(sdfg, state, map_entry, new_dim_prefix,
                                      target_dim)
         new_dim_range = (td_from, td_to, tile_size)
@@ -278,10 +265,6 @@ class StripMining(transformation.Transformation):
                 sympy.Min(dimsym + tile_size - 1, td_to),
                 dimsym + tile_size - 1)
         td_step_new = td_step
-        if debug:
-            print("td_from_new", td_from_new)
-            print("td_to_new",td_to_new)
-            print("td_step_new",td_step_new)
 
         return new_dim, new_map, (td_from_new, td_to_new, td_step_new)
 
@@ -298,23 +281,10 @@ class StripMining(transformation.Transformation):
         tile_stride = self.tile_stride
         if tile_stride is None or len(tile_stride) == 0:
             tile_stride = tile_size
-        if debug:
-            print("dim_idx",dim_idx)
-            print("new_dim_prefix",new_dim_prefix)
-            print("tile_size",tile_size)
-            print("divides_evenly",divides_evenly)
-            print("tile_stride", tile_stride)
-            print()
 
         # Retrieve parameter and range of dimension to be strip-mined.
         target_dim = map_entry.map.params[dim_idx]
         td_from, td_to, td_step = map_entry.map.range[dim_idx]
-        if debug:
-            print("target_dim",target_dim)
-            print("td_from",td_from)
-            print("td_to",td_to)
-            print("td_step",td_step)
-            print()
         # Create new map. Replace by cloning map object?
         new_dim = self._find_new_dim(sdfg, graph, map_entry, new_dim_prefix,
                                      target_dim)
@@ -326,13 +296,6 @@ class StripMining(transformation.Transformation):
                 'int_ceil((%s + 1 - %s)/ %s) - 1' %
                 (symbolic.symstr(td_to), symbolic.symstr(td_from), tile_stride))
         nd_step = 1
-        if debug:
-            print()
-            print("new_dim",new_dim)
-            print("nd_from",nd_from)
-            print("nd_to",nd_to)
-            print("nd_step",1)
-            print()
         new_dim_range = (nd_from, nd_to, nd_step)
         new_map = nodes.Map(new_dim + '_' + map_entry.map.label, [new_dim],
                             subsets.Range([new_dim_range]))
@@ -359,14 +322,10 @@ class StripMining(transformation.Transformation):
             td_to_new = td_to_new_approx
         else:
             td_to_new = dace.symbolic.SymExpr(td_to_new_exact, td_to_new_approx)
-        if debug:
-            print("td_from_new", td_from_new)
-            print("td_to_new",td_to_new)
-            print("td_step",td_step)
         return new_dim, new_map, (td_from_new, td_to_new, td_step)
 
     def _create_from_tile_numbers(self, sdfg: SDFG, state: SDFGState,
-                           map_entry: nodes.MapEntry):
+                                  map_entry: nodes.MapEntry):
         map_exit = state.exit_node(map_entry)
 
         # Retrieve transformation properties.
@@ -375,19 +334,13 @@ class StripMining(transformation.Transformation):
         divides_evenly = self.divides_evenly
         number_of_tiles = self.number_of_tiles
         tile_stride = self.tile_stride
-        
+
         number_of_tiles = dace.symbolic.pystr_to_symbolic(number_of_tiles)
 
         # Retrieve parameter and range of dimension to be strip-mined.
         target_dim = map_entry.map.params[dim_idx]
         td_from, td_to, td_step = map_entry.map.range[dim_idx]
-        if debug:
-            print("target_dim",target_dim)
-            print("td_from",td_from)
-            print("td_to",td_to)
-            print("td_step",td_step)
-            print()
-        tile_size = map_entry.map.range.size_exact()[dim_idx]/number_of_tiles
+        tile_size = map_entry.map.range.size_exact()[dim_idx] / number_of_tiles
 
         if tile_stride is None or len(tile_stride) == 0:
             tile_stride = tile_size
@@ -396,34 +349,22 @@ class StripMining(transformation.Transformation):
 
         new_dim = self._find_new_dim(sdfg, state, map_entry, new_dim_prefix,
                                      target_dim)
-        if debug:
-            print("number_of_tiles",number_of_tiles)
         new_dim_range = (td_from, number_of_tiles, 1)
         new_map = nodes.Map(map_entry.map.label, [new_dim],
-                    subsets.Range([new_dim_range]))
+                            subsets.Range([new_dim_range]))
 
         dimsym = dace.symbolic.pystr_to_symbolic(new_dim)
-        if debug:
-            print("dimsym",dimsym)
-        td_from_new = dimsym*tile_size
+        td_from_new = dimsym * tile_size
         if divides_evenly:
-            td_to_new = (dimsym+1)*tile_size
+            td_to_new = (dimsym + 1) * tile_size
         else:
             if isinstance(td_to, dace.symbolic.SymExpr):
                 td_to = td_to.expr
             td_to_new = dace.symbolic.SymExpr(
-                sympy.Min((dimsym+1)*tile_size, td_to),
-                (dimsym+1)*tile_size)
+                sympy.Min((dimsym + 1) * tile_size, td_to),
+                (dimsym + 1) * tile_size)
         td_step_new = td_step
-        if debug:
-            print("td_from_new", td_from_new)
-            print("td_to_new",td_to_new)
-            print("td_step_new",td_step_new)
-
         return new_dim, new_map, (td_from_new, td_to_new, td_step_new)
-
-
-
 
     def _stripmine(self, sdfg, graph, candidate):
         # Retrieve map entry and exit nodes.
@@ -434,7 +375,7 @@ class StripMining(transformation.Transformation):
         dim_idx = self.dim_idx
         target_dim = map_entry.map.params[dim_idx]
 
-        if self.number_of_tiles and (self.tile_size!='64' or self.ceilrange):
+        if self.number_of_tiles and (self.tile_size != '64' or self.ceilrange):
             raise ValueError('number_of_tiles is not compatible with tile_size'
                              ' or ceilrange.')
 
