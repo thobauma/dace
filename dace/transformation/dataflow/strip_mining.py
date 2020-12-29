@@ -398,7 +398,7 @@ class StripMining(transformation.Transformation):
                                      target_dim)
         if debug:
             print("number_of_tiles",number_of_tiles)
-        new_dim_range = (td_from, number_of_tiles-1, 1)
+        new_dim_range = (td_from, number_of_tiles, 1)
         new_map = nodes.Map(map_entry.map.label, [new_dim],
                     subsets.Range([new_dim_range]))
 
@@ -420,7 +420,7 @@ class StripMining(transformation.Transformation):
             print("td_to_new",td_to_new)
             print("td_step_new",td_step_new)
 
-        return new_dim, new_map, (td_from_new, td_to_new-1, td_step_new)
+        return new_dim, new_map, (td_from_new, td_to_new, td_step_new)
 
 
 
@@ -434,6 +434,9 @@ class StripMining(transformation.Transformation):
         dim_idx = self.dim_idx
         target_dim = map_entry.map.params[dim_idx]
 
+        if self.number_of_tiles and (self.tile_size!='64' or self.ceilrange):
+            raise ValueError('number_of_tiles is not compatible with tile_size'
+                             ' or ceilrange.')
 
         if self.ceilrange:
             new_dim, new_map, td_rng = self._create_ceil_range(
