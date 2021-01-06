@@ -6,6 +6,7 @@ from dace.data import Scalar
 from dace.sdfg import has_dynamic_map_inputs
 from dace.sdfg import utils as sdutil
 from dace.sdfg import nodes
+from dace.properties import make_properties, Property
 from dace.symbolic import simplify_ext
 from dace.transformation import transformation
 from dace.properties import make_properties, set_property_from_string
@@ -19,6 +20,16 @@ from dace.config import Config
 class GPUMultiTransformMap(transformation.Transformation):
 
     _map_entry = nodes.MapEntry(nodes.Map("", [], []))
+
+    new_dim_prefix = Property(dtype=str,
+                              default="gpu",
+                              allow_none=True,
+                              desc="Prefix for new dimension name")
+
+    number_of_gpus = Property(dtype=str,
+                            default=None,
+                            allow_none=True,
+                            desc="number of gpus to divide the map onto")
 
     @staticmethod
     def annotates_memlets():
@@ -78,14 +89,10 @@ class GPUMultiTransformMap(transformation.Transformation):
 
         inner_map_entry = graph.nodes()[self.subgraph[
             GPUMultiTransformMap._map_entry]]
-        num_gpus = Config.get("compiler", "cuda", "max_number_gpus")
-
+        ngpus = Config.get("compiler", "cuda", "max_number_gpus")
         # Avoiding import loops
         from dace.transformation.dataflow.strip_mining import StripMining
-        from dace.transformation.dataflow.local_storage import LocalStorage, InLocalStorage, OutLocalStorage
-
-        rangeexpr = inner_map_entry.map.range.num_elements()
-
+        from dace.transformation.dataflow.local_storage import LocalStorage
         maptiling_subgraph = {
             StripMining._map_entry:
             self.subgraph[GPUMultiTransformMap._map_entry]
@@ -93,8 +100,14 @@ class GPUMultiTransformMap(transformation.Transformation):
         sdfg_id = sdfg.sdfg_id
         stripmine = StripMining(sdfg_id, self.state_id, maptiling_subgraph,
                                 self.expr_index)
-        stripmine.new_dim_prefix = "gpu"
-        stripmine.number_of_tiles = str(num_gpus)
+        stripmine.new_dim_prefix = self.new_dim_prefix
+        if (self.number_of_gpus==None):
+            stripmine.tile_size = ngpus
+        else:
+            if self.number_of_gpus > ngpus:
+                raise ValueError('Requesting more gpus than specified in the dace config')
+            stripmine.tile_size = self.number_of_gpus
+        stripmine.tiling_type = 'number_of_tiles'
         stripmine.apply(sdfg)
 
         # Find all in-edges that lead to candidate[GPUMultiTransformMap._map_entry]
