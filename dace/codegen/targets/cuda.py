@@ -584,7 +584,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     gpus.update(range(min_map_range,max_map_range,stride_map_range))
             # if hasattr(node, 'location') and 'gpu' in node.location:
             #     gpus.add(node.location['gpu'])
-            if isinstance(node, dt.Data):
+            if isinstance(node, nodes.AccessNode):
                 desc = node.desc(graph)            
                 if 'gpu' in desc.location:
                     gpus.add(desc.location['gpu'])        
