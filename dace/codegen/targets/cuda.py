@@ -1242,7 +1242,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             raise TypeError('Cannot schedule %s directly from non-GPU code' %
                             str(scope_entry.map.schedule))
         if scope_entry.map.schedule == dtypes.ScheduleType.GPU_Multiple:
-            callsite_stream.write('''
+            callsite_stream.write('''{{
 #pragma omp parallel for
 for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
 '''.format(scope=scope_entry.params[0],
