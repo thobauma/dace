@@ -566,36 +566,32 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             :return: set of used gpus, default gpu
         """
         gpus = set()
+        seen = set()
         for node, graph in sdfg.all_nodes_recursive():
-            if hasattr(node,'_gpu_multi'):
-                delattr(node,'_gpu_multi')
+            if node in seen:
                 continue
             if (isinstance(node, nodes.EntryNode) and
                 node.schedule is dace.dtypes.ScheduleType.GPU_Multiple):
                     mapExit = graph.exit_node(node)
                     for node_between in graph.all_nodes_between(node, mapExit):
-                        node_between._gpu_multi=True
+                        seen.add(node_between)
                     dim_index = 0
                     multi_map = node.map
                     map_range = multi_map.range
                     min_map_range = map_range.min_element()[dim_index]
                     max_map_range = map_range.max_element()[dim_index]
                     stride_map_range = map_range.strides()[dim_index]
-                    gpus.update(range(min_map_range,max_map_range+1,stride_map_range))
-            if isinstance(node, nodes.AccessNode):
-                desc = node.desc(graph)              
+                    gpus.update(range(min_map_range,max_map_range,stride_map_range))
+            # if hasattr(node, 'location') and 'gpu' in node.location:
+            #     gpus.add(node.location['gpu'])
+            if isinstance(node, dt.Data):
+                desc = node.desc(graph)            
                 if 'gpu' in desc.location:
-                    gpus.add(desc.location['gpu'])
+                    gpus.add(desc.location['gpu'])        
+            seen.add(node)
         
         if len(gpus)==0:
             gpus.update(range(0,Config.get('compiler', 'cuda', 'max_number_gpus')))
-        # if default_gpu == -1:
-        #     if (len(gpus)):
-        #         default_gpu=min(gpus)
-        #     else:
-        #         default_gpu = 0
-        #         gpus.add(0)
-        
         return gpus, default_gpu
     
     def _set_gpu_device(self,
