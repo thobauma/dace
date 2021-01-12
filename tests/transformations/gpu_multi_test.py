@@ -54,11 +54,11 @@ def test_gpu_multi():
     sdfg.apply_transformations(GPUMultiTransformMap)
     
     # sdfg.view()
-    sdfg.compile()
-    # sdfg(A=A, X=X, Y=Y, N=size)
+    # sdfg.compile()
+    sdfg(A=A, X=X, Y=Y, N=size)
 
-    # assert np.allclose(Y, A*X + Z)
-    # print('PASS')
+    assert np.allclose(Y, A*X + Z)
+    print('PASS')
 
 
 if __name__ == "__main__":
