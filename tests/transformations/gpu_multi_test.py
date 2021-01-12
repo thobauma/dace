@@ -7,7 +7,7 @@ N = dace.symbol('N')
 
 
 @dace.program(dace.float64, dace.float64[N], dace.float64[N])
-def axpyMulti(A, X, Y):
+def axpyMultiGPU(A, X, Y):
     @dace.map(_[0:N])
     def multiplication(i):
         in_A << A
@@ -46,7 +46,7 @@ def test_gpu_multi():
     Y = np.random.rand(size)
     Z = Y
     
-    sdfg: dace.SDFG = axpyMulti.to_sdfg()
+    sdfg: dace.SDFG = axpyMultiGPU.to_sdfg()
     sdfg.apply_strict_transformations()
     # me = find_map_by_param(sdfg, 'i')
     #GPUMultiTransformMap.apply_to(sdfg, map_entry=me)
