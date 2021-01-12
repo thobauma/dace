@@ -17,6 +17,7 @@ def axpyMultiGPU(A, X, Y):
 
         out = in_A * in_X + in_Y
 
+
 def test_gpu_multi():
     size = 256
 
@@ -25,14 +26,15 @@ def test_gpu_multi():
     X = np.random.rand(size)
     Y = np.random.rand(size)
     Z = np.copy(Y)
-    
+
     sdfg: dace.SDFG = axpyMultiGPU.to_sdfg()
     sdfg.apply_strict_transformations()
-    sdfg.apply_transformations(GPUMultiTransformMap, options={'number_of_gpus':4})
-    
+    sdfg.apply_transformations(GPUMultiTransformMap,
+                               options={'number_of_gpus': 4})
+
     sdfg(A=A, X=X, Y=Y, N=size)
 
-    assert np.allclose(Y, A*X + Z)
+    assert np.allclose(Y, A * X + Z)
     print('PASS')
 
 
