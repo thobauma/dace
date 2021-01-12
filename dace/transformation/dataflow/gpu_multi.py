@@ -6,7 +6,7 @@ from dace.data import Scalar
 from dace.sdfg import has_dynamic_map_inputs
 from dace.sdfg import utils as sdutil
 from dace.sdfg import nodes
-from dace.properties import make_properties, Property
+from dace.properties import make_properties, Property, SymbolicProperty
 from dace.symbolic import simplify_ext
 from dace.transformation import transformation
 from dace.properties import make_properties, set_property_from_string
@@ -26,8 +26,7 @@ class GPUMultiTransformMap(transformation.Transformation):
                               allow_none=True,
                               desc="Prefix for new dimension name")
 
-    number_of_gpus = Property(dtype=str,
-                            default=None,
+    number_of_gpus = SymbolicProperty(default=None,
                             allow_none=True,
                             desc="number of gpus to divide the map onto")
 
