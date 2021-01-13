@@ -85,7 +85,7 @@ class CUDACodeGen(TargetCodeGenerator):
         self._toplevel_schedule = None
 
         # Keep track of current gpu device
-        self._gpus, self._current_gpu_device = self._check_multiple_gpus(sdfg)
+        self._gpus, self._default_gpu = self._check_multiple_gpus(sdfg)
 
         # Keep track of current "scope entry/exit" code streams for extra
         # code generation
@@ -280,9 +280,12 @@ void __dace_exit_cuda({sdfg.name}_t *__state) {{
            nevents=max(1, self._cuda_events),
            backend=self.backend,
            backend_header=backend_header,
-           gpu_device=self._current_gpu_device,
+           gpu_device=self._default_gpu,
            ngpus=len(self._gpus),
-           list_gpus=", ".join(map(str,self._gpus,)),
+           list_gpus=", ".join(map(
+               str,
+               self._gpus,
+           )),
            sdfg=self._global_sdfg)
 
         return [self._codeobject]
@@ -554,13 +557,13 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         else:
             raise NotImplementedError
     
-    def _check_multiple_gpus(self,
+    def _check_multiple_gpus(self, sdfg: SDFG, default_gpu=-1):
                              sdfg: SDFG,
                              default_gpu=-1):
         """ Checks how many gpus are used in the sdfg and sets the default gpu
             to the lowest used gpu id if default_gpu=-1, otherwise it sets the
             default to the default_gpu. If no gpus are specified it will use 
-            the max_number_gpus from the config files.
+            gpu with id=0.
             :param sdfg: the sdfg to modify.
             :param default_gpu: The default gpu.
             :return: set of used gpus, default gpu
@@ -570,8 +573,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         for node, graph in sdfg.all_nodes_recursive():
             if node in seen:
                 continue
-            if (isinstance(node, nodes.EntryNode) and
-                node.schedule is dace.dtypes.ScheduleType.GPU_Multiple):
+            if (isinstance(node, nodes.EntryNode)
+                    and node.schedule is dace.dtypes.ScheduleType.GPU_Multiple):
                     mapExit = graph.exit_node(node)
                     for node_between in graph.all_nodes_between(node, mapExit):
                         seen.add(node_between)
@@ -581,40 +584,49 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     min_map_range = map_range.min_element()[dim_index]
                     max_map_range = map_range.max_element()[dim_index]
                     stride_map_range = map_range.strides()[dim_index]
-                    gpus.update(range(min_map_range,max_map_range,stride_map_range))
-            # if hasattr(node, 'location') and 'gpu' in node.location:
-            #     gpus.add(node.location['gpu'])
+                gpus.update(
+                    range(min_map_range, max_map_range, stride_map_range))
             if isinstance(node, nodes.AccessNode):
                 desc = node.desc(graph)            
                 if 'gpu' in desc.location:
                     gpus.add(desc.location['gpu'])        
             seen.add(node)
         
-        if len(gpus)==0:
-            gpus.update(range(0,Config.get('compiler', 'cuda', 'max_number_gpus')))
+        if len(gpus) == 0:
+            if default_gpu==-1:
+                default_gpu=0
+            gpus.add(default_gpu)
+            # gpus.update(range(0,Config.get('compiler', 'cuda', 'max_number_gpus')))
+        if default_gpu==-1:
+            default_gpu=min(gpus)
         return gpus, default_gpu
     
-    def _set_gpu_device(self,
+    
+    def _get_gpu_location(self,
                          sdfg: SDFG,
-                         node_or_array: Union[dt.Data, nodes.Node],
+                        node_or_array: Union[dt.Data,nodes.Node]):
+        gpu_location = None
+        if isinstance(node_or_array, nodes.AccessNode):
+            node_or_array = node_or_array.desc(sdfg)
+        if hasattr(node_or_array,
+                   'location') and 'gpu' in node_or_array.location:
+            gpu_location = node_or_array.location['gpu']
+        return gpu_location
+    
+    def _set_gpu_device(self, sdfg: SDFG, node_or_array: Union[dt.Data,
+                                                               nodes.Node],
                          code: CodeIOStream):
         """ Checks if the codegenerator is on the correct device. If it is on
             the correct device it does nothing, otherwise it writes SetDevice
-            into the code and updates self._current_gpu_device
+            into the code.
             :param sdfg: The sdfg we are looking at.
             :param node_or_array: either an node or data, from which we check 
                                   the location parameter.
             :param code: CodeIoStream to which SetDevice is written if needed.
         """
-        gpu_location = -1
-        if hasattr(node_or_array, 'location') and 'gpu' in node_or_array.location:
-            gpu_location = node_or_array.location['gpu']
-        if isinstance(node_or_array, dt.Data):
-            if 'gpu' in node_or_array.location:
-                gpu_location = node_or_array.location['gpu']
-        if gpu_location != -1:
-            self._current_gpu_device = gpu_location
-            code.write('%sSetDevice(%s);\n'%(self.backend, gpu_location))
+        gpu_location = _get_gpu_location(sdfg, node_or_array)
+        if gpu_location:
+            code.write('%sSetDevice(%s);\n' % (self.backend, gpu_location))
 
     def _compute_cudastreams(self,
                              sdfg: SDFG,
