@@ -558,8 +558,6 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             raise NotImplementedError
     
     def _check_multiple_gpus(self, sdfg: SDFG, default_gpu=-1):
-                             sdfg: SDFG,
-                             default_gpu=-1):
         """ Checks how many gpus are used in the sdfg and sets the default gpu
             to the lowest used gpu id if default_gpu=-1, otherwise it sets the
             default to the default_gpu. If no gpus are specified it will use 
@@ -599,6 +597,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             # gpus.update(range(0,Config.get('compiler', 'cuda', 'max_number_gpus')))
         if default_gpu==-1:
             default_gpu=min(gpus)
+            
         return gpus, default_gpu
     
     
@@ -624,7 +623,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                   the location parameter.
             :param code: CodeIoStream to which SetDevice is written if needed.
         """
-        gpu_location = _get_gpu_location(sdfg, node_or_array)
+        gpu_location = self._get_gpu_location(sdfg, node_or_array)
         if gpu_location:
             code.write('%sSetDevice(%s);\n' % (self.backend, gpu_location))
 

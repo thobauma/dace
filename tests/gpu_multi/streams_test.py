@@ -40,7 +40,6 @@ def matmul2(A: dtype[M, K], B: dtype[K, N], C: dtype[N, L], D: dtype[L, O],
             E: dtype[M, O]):
     tmpAB = np.ndarray([M, N], dtype=A.dtype)
     matmul(A, B, tmpAB)
-
     tmpCD = np.ndarray([N, O], dtype=A.dtype)
     matmul(C, D, tmpCD)
 
