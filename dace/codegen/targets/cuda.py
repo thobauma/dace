@@ -573,17 +573,16 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 continue
             if (isinstance(node, nodes.EntryNode)
                     and node.schedule is dace.dtypes.ScheduleType.GPU_Multiple):
-                    mapExit = graph.exit_node(node)
-                    for node_between in graph.all_nodes_between(node, mapExit):
-                        seen.add(node_between)
-                    dim_index = 0
-                    multi_map = node.map
-                    map_range = multi_map.range
-                    min_map_range = map_range.min_element()[dim_index]
-                    max_map_range = map_range.max_element()[dim_index]
-                    stride_map_range = map_range.strides()[dim_index]
-                gpus.update(
-                    range(min_map_range, max_map_range, stride_map_range))
+                mapExit = graph.exit_node(node)
+                for node_between in graph.all_nodes_between(node, mapExit):
+                    seen.add(node_between)
+                dim_index = 0
+                multi_map = node.map
+                map_range = multi_map.range
+                min_map_range = map_range.min_element()[dim_index]
+                max_map_range = map_range.max_element()[dim_index]
+                stride_map_range = map_range.strides()[dim_index]
+                gpus.update(range(min_map_range, max_map_range, stride_map_range))
             if isinstance(node, nodes.AccessNode):
                 desc = node.desc(graph)            
                 if 'gpu' in desc.location:
