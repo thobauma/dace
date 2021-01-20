@@ -26,9 +26,12 @@ class GPUMultiTransformMap(transformation.Transformation):
                               allow_none=True,
                               desc="Prefix for new dimension name")
 
-    number_of_gpus = SymbolicProperty(default=None,
-                            allow_none=True,
-                            desc="number of gpus to divide the map onto")
+    number_of_gpus = SymbolicProperty(
+        default=None,
+        allow_none=True,
+        desc="number of gpus to divide the map onto,"
+        " if not used, uses the amount specified"
+        " in the dace.config in max_number_gpus.")
 
     @staticmethod
     def annotates_memlets():
@@ -100,11 +103,12 @@ class GPUMultiTransformMap(transformation.Transformation):
         stripmine = StripMining(sdfg_id, self.state_id, maptiling_subgraph,
                                 self.expr_index)
         stripmine.new_dim_prefix = self.new_dim_prefix
-        if (self.number_of_gpus==None):
+        if (self.number_of_gpus == None):
             stripmine.tile_size = ngpus
         else:
             if self.number_of_gpus > ngpus:
-                raise ValueError('Requesting more gpus than specified in the dace config')
+                raise ValueError(
+                    'Requesting more gpus than specified in the dace config')
             stripmine.tile_size = self.number_of_gpus
         stripmine.tiling_type = 'number_of_tiles'
         stripmine.apply(sdfg)
