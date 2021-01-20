@@ -1,7 +1,7 @@
 # Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
 import dace
 import numpy as np
-import pytest
+#import pytest
 from dace.transformation.dataflow import GPUMultiTransformMap, GPUTransformMap
 
 N = dace.symbol('N')
@@ -19,7 +19,7 @@ def axpyMultiGPU(A, X, Y):
         out = in_A * in_X + in_Y
 
 
-@pytest.mark.gpu
+#@pytest.mark.gpu
 def test_gpu_multi():
     size = 256
 
@@ -31,8 +31,8 @@ def test_gpu_multi():
 
     sdfg: dace.SDFG = axpyMultiGPU.to_sdfg()
     sdfg.apply_strict_transformations()
-    sdfg.apply_transformations(GPUMultiTransformMap,
-                               options={'number_of_gpus': 4})
+    sdfg.apply_transformations(GPUMultiTransformMap)
+    #                           options={'number_of_gpus': 4})
 
     sdfg(A=A, X=X, Y=Y, N=size)
 
