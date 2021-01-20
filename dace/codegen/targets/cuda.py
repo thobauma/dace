@@ -925,7 +925,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                         syncwith[e.dst._cuda_stream] = e._cuda_event
 
                 if cudastream != 'nullptr':
-                    cudastream = '__state->gpu_context[%d]->streams[%d]' % (gpuid,cudastream)
+                    cudastream = '__state->gpu_context[%s]->streams[%d]' % (gpuid,cudastream)
 
             if memlet.wcr is not None:
                 raise NotImplementedError(
@@ -1020,7 +1020,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             else:
                 # Synchronize with other streams as necessary
                 for streamid, event in syncwith.items():
-                    syncstream = '__state->gpu_context[%d]->streams[%d]' % (gpuid, streamid)
+                    syncstream = '__state->gpu_context[%s]->streams[%d]' % (gpuid, streamid)
                     callsite_stream.write(
                         '''
     {backend}EventRecord(__state->gpu_context[{gpu_id}]->events[{ev}], {src_stream});
@@ -1559,7 +1559,7 @@ for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
             max_streams = int(
                 Config.get('compiler', 'cuda', 'max_concurrent_streams'))
             if max_streams >= 0:
-                cudastream = '__state->gpu_context[%d]->streams[%d]' % (scope_entry.location['gpu'],scope_entry._cuda_stream)
+                cudastream = '__state->gpu_context[%s]->streams[%d]' % (scope_entry.location['gpu'],scope_entry._cuda_stream)
             else:
                 cudastream = 'nullptr'
 
