@@ -643,9 +643,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                                                     nodes.Node]):
         if isinstance(node_or_array, nodes.AccessNode):
             node_or_array = node_or_array.desc(sdfg)
-            if hasattr(node_or_array,
-                    'location') and 'gpu' in node_or_array.location:
-                return True
+        if hasattr(node_or_array,
+                'location') and 'gpu' in node_or_array.location:
+            return True
         return False
 
     def _get_gpu_location(self, sdfg: SDFG, node_or_array: Union[dt.Data,
