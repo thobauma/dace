@@ -158,7 +158,7 @@ class CUDACodeGen(TargetCodeGenerator):
 
     def on_target_used(self) -> None:
         # Right before finalizing code, write GPU context to state structure
-        self._frame.statestruct.append('dace::cuda::Context *gpu_context;')
+        self._frame.statestruct.append('std::vector<dace::cuda::Context> *gpu_context;')
 
     # Generate final code
     def get_generated_codeobjects(self):
@@ -219,11 +219,12 @@ int __dace_init_cuda({sdfg.name}_t *__state{params}) {{
     int n_streams[{ngpus}]={{{list_streams}}};
     int n_events[{ngpus}]={{{list_events}}};
 
-    __state->gpu_context = new dace::cuda::Context({nstreams}, {nevents})[{ngpus}];
-    
+    __state->gpu_context = new std::vector<dace::cuda::Context>;
+
     // Enable peer-to-peer access
     for(int i = 0; i < {ngpus}; ++i)
     {{
+        __state->gpu_context->emplace_back(n_streams[i],n_events[i]);
 
         if({backend}SetDevice(gpu_devices[i]) != {backend}Success)
         {{

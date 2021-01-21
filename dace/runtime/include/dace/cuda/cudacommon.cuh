@@ -35,11 +35,17 @@ struct Context {
     int num_events;
     gpuStream_t *streams;
     gpuEvent_t *events;
+    Context(){}
     Context(int nstreams, int nevents) : num_streams(nstreams), 
         num_events(nevents) {
         streams = new gpuStream_t[nstreams];
         events = new gpuEvent_t[nevents];
     }
+    Context(const Context& c) : num_streams(c.num_streams),
+        num_events(c.num_events) {
+        streams = new gpuStream_t[c.num_streams];
+        events = new gpuEvent_t[c.num_events];
+    }  
     ~Context() {
         delete[] streams;
         delete[] events;
