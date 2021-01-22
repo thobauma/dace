@@ -28,11 +28,6 @@ class LocalStorage(xf.Transformation, ABC):
         default=None,
         allow_none=True)
 
-    create_array = Property(dtype=bool,
-                            default=True,
-                            desc="if false, it does not create a new array.",
-                            allow_none=True)
-
     def __init__(self, sdfg_id, state_id, subgraph, expr_index):
         super().__init__(sdfg_id, state_id, subgraph, expr_index)
         self._local_name = None
@@ -83,23 +78,20 @@ class LocalStorage(xf.Transformation, ABC):
         if invariant_memlet is None:
             raise NameError('Array %s not found!' % array)
 
-        if self.create_array:
-            # Add transient array
-            new_data, _ = sdfg.add_array(
-                'trans_' + invariant_memlet.data, [
-                    symbolic.overapproximate(r).simplify()
-                    for r in invariant_memlet.bounding_box_size()
-                ],
-                sdfg.arrays[invariant_memlet.data].dtype,
-                transient=True,
-                find_new_name=True)
-            data_node = nodes.AccessNode(new_data)
+        # Add transient array
+        new_data, _ = sdfg.add_array('trans_' + invariant_memlet.data, [
+            symbolic.overapproximate(r)
+            for r in invariant_memlet.bounding_box_size()
+        ],
+                                     sdfg.arrays[invariant_memlet.data].dtype,
+                                     transient=True,
+                                     find_new_name=True)
+        data_node = nodes.AccessNode(new_data)
 
-            # Store as fields so that other transformations can use them
-            self._local_name = new_data
-            self._data_node = data_node
-        else:
-            data_node = nodes.AccessNode(self.array)
+        # Store as fields so that other transformations can use them
+        self._local_name = new_data
+        self._data_node = data_node
+
         to_data_mm = copy.deepcopy(invariant_memlet)
         from_data_mm = copy.deepcopy(invariant_memlet)
         offset = subsets.Indices([r[0] for r in invariant_memlet.subset])
@@ -120,10 +112,7 @@ class LocalStorage(xf.Transformation, ABC):
         # Offset all edges in the memlet tree (including the new edge)
         for edge in graph.memlet_tree(new_edge):
             edge.data.subset.offset(offset, True)
-            if self.create_array:
-                edge.data.data = new_data
-            else:
-                edge.data.data = self.array
+            edge.data.data = new_data
 
         return data_node
 
