@@ -27,6 +27,8 @@ def calc_set_image_index(map_idx, map_set, array_idx):
                 else:
                     exact = m_range[i]
                     approx = overapproximate(m_range[i])
+                exact = exact.simplify()
+                approx = approx.simplify()
                 if isinstance(new_range[i], SymExpr):
                     new_range[i] = SymExpr(
                         new_range[i].expr.subs([(symbol, exact)]),
@@ -54,6 +56,8 @@ def calc_set_image_range(map_idx, map_set, array_range):
                 else:
                     exact = m_range[i]
                     approx = overapproximate(m_range[i])
+                exact = exact.simplify()
+                approx = approx.simplify()
                 if isinstance(new_range[i], SymExpr):
                     new_range[i] = SymExpr(
                         new_range[i].expr.subs([(symbol, exact)]),
@@ -93,12 +97,16 @@ def calc_set_union(set_a, set_b):
             else:
                 a_exact = range_a[i]
                 a_approx = range_a[i]
+            a_exact = a_exact.simplify()
+            a_approx = a_approx.simplify()
             if isinstance(range_b[i], SymExpr):
                 b_exact = range_b[i].expr
                 b_approx = range_b[i].approx
             else:
                 b_exact = range_b[i]
                 b_approx = range_b[i]
+            b_exact = b_exact.simplify()
+            b_approx = b_approx.simplify()
             if i in {0, 2}:
                 r_union.append(
                     SymExpr(sympy.Min(a_exact, b_exact),
@@ -137,9 +145,10 @@ class StripMining(transformation.Transformation):
     new_dim_prefix = Property(dtype=str,
                               default="tile",
                               desc="Prefix for new dimension name")
-    tile_size = SymbolicProperty(default=64,
-                                 desc="Tile size of strip-mined dimension, "
-                                 "or number of tiles if tiling_type=number_of_tiles")
+    tile_size = SymbolicProperty(
+        default=64,
+        desc="Tile size of strip-mined dimension, "
+        "or number of tiles if tiling_type=number_of_tiles")
     tile_stride = SymbolicProperty(default=0,
                                    desc="Stride between two tiles of the "
                                    "strip-mined dimension. If zero, it is set "
@@ -381,20 +390,20 @@ class StripMining(transformation.Transformation):
 
         new_dim = self._find_new_dim(sdfg, state, map_entry, new_dim_prefix,
                                      target_dim)
-        new_dim_range = (td_from, number_of_tiles, 1)
+        new_dim_range = (td_from, number_of_tiles - 1, 1)
         new_map = nodes.Map(map_entry.map.label, [new_dim],
                             subsets.Range([new_dim_range]))
 
         dimsym = dace.symbolic.pystr_to_symbolic(new_dim)
         td_from_new = dimsym * tile_size
         if divides_evenly:
-            td_to_new = (dimsym + 1) * tile_size
+            td_to_new = (dimsym + 1) * tile_size - 1
         else:
             if isinstance(td_to, dace.symbolic.SymExpr):
                 td_to = td_to.expr
             td_to_new = dace.symbolic.SymExpr(
-                sympy.Min((dimsym + 1) * tile_size, td_to),
-                (dimsym + 1) * tile_size)
+                sympy.Min((dimsym + 1) * tile_size - 1, td_to),
+                (dimsym + 1) * tile_size - 1)
         td_step_new = td_step
         return new_dim, new_map, (td_from_new, td_to_new, td_step_new)
 
@@ -471,9 +480,10 @@ class StripMining(transformation.Transformation):
                     new_memlet = dcpy(memlet)
                     new_memlet.subset = new_subset
                     if memlet.dynamic:
-                        new_memlet.num_accesses = memlet.num_accesses
+                        new_memlet.num_accesses = memlet.num_accesses.simplify()
                     else:
-                        new_memlet.num_accesses = new_memlet.num_elements()
+                        new_memlet.num_accesses = new_memlet.num_elements(
+                        ).simplify()
                     new_in_edges[key] = new_memlet
             else:
                 if src_conn is not None and src_conn[:4] == 'OUT_':
@@ -517,9 +527,10 @@ class StripMining(transformation.Transformation):
                     new_memlet = dcpy(memlet)
                     new_memlet.subset = new_subset
                     if memlet.dynamic:
-                        new_memlet.num_accesses = memlet.num_accesses
+                        new_memlet.num_accesses = memlet.num_accesses.simplify()
                     else:
-                        new_memlet.num_accesses = new_memlet.num_elements()
+                        new_memlet.num_accesses = new_memlet.num_elements(
+                        ).simplify()
                     new_out_edges[key] = new_memlet
             else:
                 if dst_conn is not None and dst_conn[:3] == 'IN_':
