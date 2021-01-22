@@ -91,28 +91,37 @@ class GPUMultiTransformMap(transformation.Transformation):
 
         inner_map_entry = graph.nodes()[self.subgraph[
             GPUMultiTransformMap._map_entry]]
+        
+        number_of_gpus = self.number_of_gpus
         ngpus = Config.get("compiler", "cuda", "max_number_gpus")
+        if (number_of_gpus == None):
+            number_of_gpus = ngpus
+        if number_of_gpus > ngpus:
+            raise ValueError(
+                'Requesting more gpus than specified in the dace config')
+
         # Avoiding import loops
         from dace.transformation.dataflow.strip_mining import StripMining
-        from dace.transformation.dataflow.local_storage import LocalStorage
-        maptiling_subgraph = {
-            StripMining._map_entry:
-            self.subgraph[GPUMultiTransformMap._map_entry]
-        }
-        sdfg_id = sdfg.sdfg_id
-        stripmine = StripMining(sdfg_id, self.state_id, maptiling_subgraph,
-                                self.expr_index)
-        stripmine.new_dim_prefix = self.new_dim_prefix
-        if (self.number_of_gpus == None):
-            stripmine.tile_size = ngpus
-        else:
-            if self.number_of_gpus > ngpus:
-                raise ValueError(
-                    'Requesting more gpus than specified in the dace config')
-            stripmine.tile_size = self.number_of_gpus
-        stripmine.tiling_type = 'number_of_tiles'
-        stripmine.apply(sdfg)
 
+
+        outer_map = StripMining.apply_to(sdfg,
+                             dict(dim_idx=-1,
+                                  new_dim_prefix=self.new_dim_prefix,
+                                  tile_size=number_of_gpus,
+                                  tiling_type='number_of_tiles'),
+                             _map_entry=inner_map_entry)
+        
+        # maptiling_subgraph = {
+        #     StripMining._map_entry:
+        #     self.subgraph[GPUMultiTransformMap._map_entry]
+        # }
+        # sdfg_id = sdfg.sdfg_id
+        # stripmine = StripMining(sdfg_id, self.state_id, maptiling_subgraph,
+        #                         self.expr_index)
+        # stripmine.new_dim_prefix = self.new_dim_prefix
+        # stripmine.tiling_type = 'number_of_tiles'
+        # stripmine.apply(sdfg)
+        sdfg.view()
         # Find all in-edges that lead to candidate[GPUMultiTransformMap._map_entry]
         inner_edges = [
             e for e in graph.in_edges(inner_map_entry)
@@ -178,8 +187,7 @@ class GPUMultiTransformMap(transformation.Transformation):
 
         for data_name in exit_data:
             out_data_node = LocalStorage.apply_to(sdfg,
-                                                  dict(array=data_name,
-                                                       create_array=False),
+                                                  dict(array=data_name),
                                                   verify=False,
                                                   save=False,
                                                   node_a=inner_map_exit,
