@@ -576,6 +576,24 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             pass  # Do nothing
         else:
             raise NotImplementedError
+    
+    # def _annote_sdfg_gpu_location(self, sdfg: SDFG, default_gpu=0):
+        # for node, graph in sdfg.all_nodes_recursive():
+        #     if ((isinstance(node, nodes.AccessNode)
+        #          and node.desc(sdfg).storage == dtypes.StorageType.GPU_Global)
+        #             and not self._check_gpu_location(sdfg, node)):
+        #         node.desc(sdfg).location['gpu'] = default_gpu
+        #     if ((isinstance(node, nodes.CodeNode)
+        #          and is_devicelevel_gpu(sdfg, graph, node))
+        #             and not self._check_gpu_location(sdfg, node)):
+        #         node.location['gpu'] = default_gpu
+        #     if isinstance(node, nodes.EntryNode):
+        #         if node.schedule == dtypes.ScheduleType.GPU_Multiple:
+        #             continue
+        #         if (node.schedule in dtypes.GPU_SCHEDULES
+        #                 and 'gpu' not in node.location):
+        #             node.location['gpu'] = default_gpu
+
 
     def _check_multiple_gpus(self, sdfg: SDFG, default_gpu=-1):
         """ Checks how many gpus are used in the sdfg and sets the default gpu
@@ -627,41 +645,41 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
 
         for node, graph in sdfg.all_nodes_recursive():
             if ((isinstance(node, nodes.AccessNode)
-                 and node.desc(sdfg).storage == dtypes.StorageType.GPU_Global)
-                    and not self._check_gpu_location(sdfg, node)):
-                node.desc(sdfg).location['gpu'] = default_gpu
+                 and node.desc(graph).storage == dtypes.StorageType.GPU_Global)
+                    and not self._check_gpu_location(graph, node)):
+                node.desc(graph).location['gpu'] = default_gpu
             if ((isinstance(node, nodes.CodeNode)
                  and is_devicelevel_gpu(sdfg, graph, node))
-                    and not self._check_gpu_location(sdfg, node)):
+                    and not self._check_gpu_location(graph, node)):
                 node.location['gpu'] = default_gpu
             if isinstance(node, nodes.EntryNode):
                 if node.schedule == dtypes.ScheduleType.GPU_Multiple:
                     continue
                 if (node.schedule in dtypes.GPU_SCHEDULES
                         and 'gpu' not in node.location):
-                    node.location['gpu'] = default_gpu
+                    node.location['gpu'] = default_gpu        
         return gpus, default_gpu
 
-    def _check_gpu_location(self, sdfg: SDFG, node_or_array: Union[dt.Data,
+    def _check_gpu_location(self, state: Union[SDFG, SDFGState], node_or_array: Union[dt.Data,
                                                                    nodes.Node]):
         if isinstance(node_or_array, nodes.AccessNode):
-            node_or_array = node_or_array.desc(sdfg)
+            node_or_array = node_or_array.desc(state)
         if hasattr(node_or_array,
                    'location') and 'gpu' in node_or_array.location:
             return True
         return False
 
-    def _get_gpu_location(self, sdfg: SDFG, node_or_array: Union[dt.Data,
+    def _get_gpu_location(self, state: Union[SDFG, SDFGState], node_or_array: Union[dt.Data,
                                                                  nodes.Node]):
         gpu_location = None
         if isinstance(node_or_array, nodes.AccessNode):
-            node_or_array = node_or_array.desc(sdfg)
+            node_or_array = node_or_array.desc(state)
         if hasattr(node_or_array,
                    'location') and 'gpu' in node_or_array.location:
             gpu_location = node_or_array.location['gpu']
         return gpu_location
 
-    def _set_gpu_device(self, sdfg: SDFG, node_or_array: Union[dt.Data,
+    def _set_gpu_device(self, state: Union[SDFG, SDFGState], node_or_array: Union[dt.Data,
                                                                nodes.Node],
                         code: CodeIOStream):
         """ Checks if the codegenerator is on the correct device. If it is on
@@ -672,7 +690,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                   the location parameter.
             :param code: CodeIoStream to which SetDevice is written if needed.
         """
-        gpu_location = self._get_gpu_location(sdfg, node_or_array)
+        gpu_location = self._get_gpu_location(state, node_or_array)
         if gpu_location != None:
             code.write('%sSetDevice(%s);\n' % (self.backend, gpu_location))
 
@@ -680,7 +698,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                        sdfg: SDFG,
                                        default_stream=0,
                                        default_event=0):
-        """ computes the cudastreams and events for each gpus.
+        """ computes the cudastreams and events for each gpu.
             :param sdfg: The sdfg to modify.
             :param default_stream: The stream ID to start counting from (used
                                    in recursion to nested SDFGs).
@@ -688,6 +706,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                   in recursion to nested SDFGs).
             :return: 2-tuple of the number of streams, events to create.
         """
+        default_gpu = self._default_gpu
         gpus = self._gpus
         max_gpu_streams = dict()
         max_gpu_events = dict()
@@ -751,7 +770,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 if isinstance(e.dst, nodes.NestedSDFG):
                     if e.dst.schedule not in dtypes.GPU_SCHEDULES:
                         max_streams, max_events = self._compute_cudastreams(
-                            e.dst.sdfg, gpu, e.dst._cuda_stream, max_events + 1)
+                            e.dst.sdfg, default_gpu, e.dst._cuda_stream, max_events + 1)
 
             state_streams.append(max_streams if concurrent_streams ==
                                  0 else concurrent_streams)
@@ -883,6 +902,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 gpuid = self._get_gpu_location(sdfg, src_node)
             else:
                 gpuid = self._get_gpu_location(sdfg, dst_node)
+            # if gpuid == None:
+            #     gpuid = self._default_gpu
             # Corner case: A stream is writing to an array
             if (isinstance(sdfg.arrays[src_node.data], dt.Stream)
                     and isinstance(sdfg.arrays[dst_node.data],
