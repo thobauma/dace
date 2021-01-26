@@ -27,8 +27,6 @@ def calc_set_image_index(map_idx, map_set, array_idx):
                 else:
                     exact = m_range[i]
                     approx = overapproximate(m_range[i])
-                exact = exact.simplify()
-                approx = approx.simplify()
                 if isinstance(new_range[i], SymExpr):
                     new_range[i] = SymExpr(
                         new_range[i].expr.subs([(symbol, exact)]),
@@ -56,8 +54,6 @@ def calc_set_image_range(map_idx, map_set, array_range):
                 else:
                     exact = m_range[i]
                     approx = overapproximate(m_range[i])
-                exact = exact.simplify()
-                approx = approx.simplify()
                 if isinstance(new_range[i], SymExpr):
                     new_range[i] = SymExpr(
                         new_range[i].expr.subs([(symbol, exact)]),
@@ -97,16 +93,12 @@ def calc_set_union(set_a, set_b):
             else:
                 a_exact = range_a[i]
                 a_approx = range_a[i]
-            a_exact = a_exact.simplify()
-            a_approx = a_approx.simplify()
             if isinstance(range_b[i], SymExpr):
                 b_exact = range_b[i].expr
                 b_approx = range_b[i].approx
             else:
                 b_exact = range_b[i]
                 b_approx = range_b[i]
-            b_exact = b_exact.simplify()
-            b_approx = b_approx.simplify()
             if i in {0, 2}:
                 r_union.append(
                     SymExpr(sympy.Min(a_exact, b_exact),
@@ -480,10 +472,9 @@ class StripMining(transformation.Transformation):
                     new_memlet = dcpy(memlet)
                     new_memlet.subset = new_subset
                     if memlet.dynamic:
-                        new_memlet.num_accesses = memlet.num_accesses.simplify()
+                        new_memlet.num_accesses = memlet.num_accesses
                     else:
-                        new_memlet.num_accesses = new_memlet.num_elements(
-                        ).simplify()
+                        new_memlet.num_accesses = new_memlet.num_elements()
                     new_in_edges[key] = new_memlet
             else:
                 if src_conn is not None and src_conn[:4] == 'OUT_':
@@ -527,10 +518,9 @@ class StripMining(transformation.Transformation):
                     new_memlet = dcpy(memlet)
                     new_memlet.subset = new_subset
                     if memlet.dynamic:
-                        new_memlet.num_accesses = memlet.num_accesses.simplify()
+                        new_memlet.num_accesses = memlet.num_accesses
                     else:
-                        new_memlet.num_accesses = new_memlet.num_elements(
-                        ).simplify()
+                        new_memlet.num_accesses = new_memlet.num_elements()
                     new_out_edges[key] = new_memlet
             else:
                 if dst_conn is not None and dst_conn[:3] == 'IN_':

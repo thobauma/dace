@@ -91,7 +91,7 @@ class GPUMultiTransformMap(transformation.Transformation):
 
         inner_map_entry = graph.nodes()[self.subgraph[
             GPUMultiTransformMap._map_entry]]
-        
+
         number_of_gpus = self.number_of_gpus
         ngpus = Config.get("compiler", "cuda", "max_number_gpus")
         if (number_of_gpus == None):
@@ -102,26 +102,16 @@ class GPUMultiTransformMap(transformation.Transformation):
 
         # Avoiding import loops
         from dace.transformation.dataflow.strip_mining import StripMining
-
+        from dace.transformation.dataflow.local_storage import LocalStorage
 
         outer_map = StripMining.apply_to(sdfg,
-                             dict(dim_idx=-1,
-                                  new_dim_prefix=self.new_dim_prefix,
-                                  tile_size=number_of_gpus,
-                                  tiling_type='number_of_tiles'),
-                             _map_entry=inner_map_entry)
-        
-        # maptiling_subgraph = {
-        #     StripMining._map_entry:
-        #     self.subgraph[GPUMultiTransformMap._map_entry]
-        # }
-        # sdfg_id = sdfg.sdfg_id
-        # stripmine = StripMining(sdfg_id, self.state_id, maptiling_subgraph,
-        #                         self.expr_index)
-        # stripmine.new_dim_prefix = self.new_dim_prefix
-        # stripmine.tiling_type = 'number_of_tiles'
-        # stripmine.apply(sdfg)
-        sdfg.view()
+                                         dict(
+                                             dim_idx=-1,
+                                             new_dim_prefix=self.new_dim_prefix,
+                                             tile_size=number_of_gpus,
+                                             tiling_type='number_of_tiles'),
+                                         _map_entry=inner_map_entry)
+
         # Find all in-edges that lead to candidate[GPUMultiTransformMap._map_entry]
         inner_edges = [
             e for e in graph.in_edges(inner_map_entry)
@@ -149,20 +139,19 @@ class GPUMultiTransformMap(transformation.Transformation):
         tasklet.location = {"gpu": gpu_id}
 
         # Now create a transient for each array
-        entry_data = set()
-        entry_edges = [
-            e for e in graph.in_edges(outer_map_entry)
-            if isinstance(e.src, nodes.AccessNode)
-        ]
-        for e in entry_edges:
-            data_node = e.src
-            data_name = e.data.data
-            if not isinstance(data_node.desc(sdfg), Scalar):
-                entry_data.add(data_name)
-
-        for data_name in entry_data:
+        in_data = []
+        for e in graph.in_edges(outer_map_entry):
+            node = e.src
+            data = node.desc(sdfg)
+            if isinstance(node,
+                          nodes.AccessNode) and not isinstance(data, Scalar):
+                in_data.append(node.data)
+        prefix = "gpu_multi_"
+        out_data = []
+        for data_name in in_data:
             in_data_node = LocalStorage.apply_to(sdfg,
-                                                 dict(array=data_name),
+                                                 dict(array=data_name,
+                                                      prefix=prefix),
                                                  verify=False,
                                                  save=False,
                                                  node_a=outer_map_entry,
@@ -171,26 +160,24 @@ class GPUMultiTransformMap(transformation.Transformation):
             in_data.location = {"gpu": gpu_id}
             in_data.storage = dtypes.StorageType.GPU_Global
 
-        exit_data = set()
-        exit_edges = [
-            e for e in graph.out_edges(outer_map_exit)
-            if isinstance(e.dst, nodes.AccessNode)
-        ]
-        for e in exit_edges:
-            data_node = e.dst
-            data_name = e.data.data
-            if not isinstance(data_node.desc(sdfg), Scalar):
-                if sdfg.arrays['trans_' + data_name]:
-                    exit_data.add('trans_' + data_name)
+        for e in graph.out_edges(outer_map_exit):
+            node = e.dst
+            data = node.desc(sdfg)
+            if isinstance(node,
+                          nodes.AccessNode) and not isinstance(data, Scalar):
+                data_name = node.data
+                if prefix + data_name in sdfg.arrays:
+                    out_data.append((data_name, False))
                 else:
-                    exit_data.add(data_name)
+                    out_data.append((data_name, True))
 
-        for data_name in exit_data:
-            out_data_node = LocalStorage.apply_to(sdfg,
-                                                  dict(array=data_name),
-                                                  verify=False,
-                                                  save=False,
-                                                  node_a=inner_map_exit,
-                                                  node_b=outer_map_exit)
+        for data_name, create_array in out_data:
+            out_data_node = LocalStorage.apply_to(
+                sdfg,
+                dict(array=data_name, prefix=prefix, create_array=create_array),
+                verify=False,
+                save=False,
+                node_a=inner_map_exit,
+                node_b=outer_map_exit)
             out_data_node.desc(sdfg).location = {"gpu": gpu_id}
             out_data_node.desc(sdfg).storage = dtypes.StorageType.GPU_Global

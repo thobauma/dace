@@ -93,7 +93,8 @@ class CUDACodeGen(TargetCodeGenerator):
         self.scope_exit_stream = self._exitcode
 
         # Annotate CUDA streams and events
-        self._cuda_streams, self._cuda_events = self._multi_gpu_compute_cudastreams(sdfg)
+        self._cuda_streams, self._cuda_events = self._multi_gpu_compute_cudastreams(
+            sdfg)
 
         # Register dispatchers
         self._cpu_codegen = dispatcher.get_generic_node_dispatcher()
@@ -158,7 +159,8 @@ class CUDACodeGen(TargetCodeGenerator):
 
     def on_target_used(self) -> None:
         # Right before finalizing code, write GPU context to state structure
-        self._frame.statestruct.append('std::vector<dace::cuda::Context> *gpu_context;')
+        self._frame.statestruct.append(
+            'std::vector<dace::cuda::Context> *gpu_context;')
 
     # Generate final code
     def get_generated_codeobjects(self):
@@ -284,26 +286,27 @@ void __dace_exit_cuda({sdfg.name}_t *__state) {{
 }}
 
 {localcode}
-""".format(params=params_comma,
-           initcode=initcode.getvalue(),
-           exitcode=exitcode.getvalue(),
-           other_globalcode=self._globalcode.getvalue(),
-           localcode=self._localcode.getvalue(),
-           file_header=fileheader.getvalue(),
-           # hack, should create Context with right amount of streams, events
-           nstreams = max(self._cuda_streams.values()),
-           nevents = max(self._cuda_events.values()),
-           list_streams=", ".join(map(str,self._cuda_streams.values())),
-           list_events=", ".join(map(str,self._cuda_events.values())),
-           backend=self.backend,
-           backend_header=backend_header,
-           gpu_device=self._default_gpu,
-           ngpus=len(self._gpus),
-           list_gpus=", ".join(map(
-               str,
-               self._gpus,
-           )),
-           sdfg=self._global_sdfg)
+""".format(
+            params=params_comma,
+            initcode=initcode.getvalue(),
+            exitcode=exitcode.getvalue(),
+            other_globalcode=self._globalcode.getvalue(),
+            localcode=self._localcode.getvalue(),
+            file_header=fileheader.getvalue(),
+            # hack, should create Context with right amount of streams, events
+            nstreams=max(self._cuda_streams.values()),
+            nevents=max(self._cuda_events.values()),
+            list_streams=", ".join(map(str, self._cuda_streams.values())),
+            list_events=", ".join(map(str, self._cuda_events.values())),
+            backend=self.backend,
+            backend_header=backend_header,
+            gpu_device=self._default_gpu,
+            ngpus=len(self._gpus),
+            list_gpus=", ".join(map(
+                str,
+                self._gpus,
+            )),
+            sdfg=self._global_sdfg)
 
         return [self._codeobject]
 
@@ -617,39 +620,39 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 'You are trying to use more GPUs than specified in the dace config.'
             )
         else:
-            gpus.update(range(0,max_number_gpus))
+            gpus.update(range(0, max_number_gpus))
 
         if default_gpu == -1:
             default_gpu = min(gpus)
-            
+
         for node, graph in sdfg.all_nodes_recursive():
             if ((isinstance(node, nodes.AccessNode)
                  and node.desc(sdfg).storage == dtypes.StorageType.GPU_Global)
-                 and not self._check_gpu_location(sdfg,node)):
+                    and not self._check_gpu_location(sdfg, node)):
                 node.desc(sdfg).location['gpu'] = default_gpu
-            if ((isinstance(node, nodes.CodeNode) and 
-                is_devicelevel_gpu(sdfg, graph, node)) and
-                not self._check_gpu_location(sdfg,node)):
+            if ((isinstance(node, nodes.CodeNode)
+                 and is_devicelevel_gpu(sdfg, graph, node))
+                    and not self._check_gpu_location(sdfg, node)):
                 node.location['gpu'] = default_gpu
             if isinstance(node, nodes.EntryNode):
                 if node.schedule == dtypes.ScheduleType.GPU_Multiple:
                     continue
                 if (node.schedule in dtypes.GPU_SCHEDULES
-                     and 'gpu' not in node.location):
+                        and 'gpu' not in node.location):
                     node.location['gpu'] = default_gpu
         return gpus, default_gpu
 
-    def _check_gpu_location(self, sdfg:SDFG, node_or_array: Union[dt.Data,
-                                                                    nodes.Node]):
+    def _check_gpu_location(self, sdfg: SDFG, node_or_array: Union[dt.Data,
+                                                                   nodes.Node]):
         if isinstance(node_or_array, nodes.AccessNode):
             node_or_array = node_or_array.desc(sdfg)
         if hasattr(node_or_array,
-                'location') and 'gpu' in node_or_array.location:
+                   'location') and 'gpu' in node_or_array.location:
             return True
         return False
 
     def _get_gpu_location(self, sdfg: SDFG, node_or_array: Union[dt.Data,
-                                                                    nodes.Node]):
+                                                                 nodes.Node]):
         gpu_location = None
         if isinstance(node_or_array, nodes.AccessNode):
             node_or_array = node_or_array.desc(sdfg)
@@ -657,7 +660,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                    'location') and 'gpu' in node_or_array.location:
             gpu_location = node_or_array.location['gpu']
         return gpu_location
-        
+
     def _set_gpu_device(self, sdfg: SDFG, node_or_array: Union[dt.Data,
                                                                nodes.Node],
                         code: CodeIOStream):
@@ -674,9 +677,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             code.write('%sSetDevice(%s);\n' % (self.backend, gpu_location))
 
     def _multi_gpu_compute_cudastreams(self,
-                                        sdfg:SDFG,
-                                        default_stream=0,
-                                        default_event=0):
+                                       sdfg: SDFG,
+                                       default_stream=0,
+                                       default_event=0):
         """ computes the cudastreams and events for each gpus.
             :param sdfg: The sdfg to modify.
             :param default_stream: The stream ID to start counting from (used
@@ -753,16 +756,13 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             state_streams.append(max_streams if concurrent_streams ==
                                  0 else concurrent_streams)
             state_subsdfg_events.append(max_events)
-        
+
         for gpu in gpus:
-            nstreams,nevents= self._compute_cudastreams(sdfg,
-                                                        gpu,
-                                                        default_stream,
-                                                        default_event,
-                                                        state_streams,
-                                                        state_subsdfg_events)
-            max_gpu_streams[gpu]=max(1,nstreams)
-            max_gpu_events[gpu] =max(1,nevents)
+            nstreams, nevents = self._compute_cudastreams(
+                sdfg, gpu, default_stream, default_event, state_streams,
+                state_subsdfg_events)
+            max_gpu_streams[gpu] = max(1, nstreams)
+            max_gpu_events[gpu] = max(1, nevents)
         return max_gpu_streams, max_gpu_events
 
     def _compute_cudastreams(self,
@@ -800,11 +800,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     path = graph.memlet_path(e)
                     # If leading from/to a GPU memory node, keep stream
                     if ((isinstance(path[0].src, nodes.AccessNode)
-                         and path[0].src.desc(cur_sdfg).location
-                         == gpu)
-                            or (isinstance(path[-1].dst, nodes.AccessNode)
-                                and path[-1].dst.desc(cur_sdfg).location
-                                == gpu)):
+                         and path[0].src.desc(cur_sdfg).location == gpu) or
+                        (isinstance(path[-1].dst, nodes.AccessNode)
+                         and path[-1].dst.desc(cur_sdfg).location == gpu)):
                         break
                     # If leading from/to a GPU tasklet, keep stream
                     if ((isinstance(path[0].src, nodes.CodeNode)
@@ -827,7 +825,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             events = state_subsdfg_events[i]
 
             for e in state.edges():
-                if hasattr(e.src, '_cuda_stream') and self._get_gpu_location(sdfg, e.src)==gpu:
+                if hasattr(e.src, '_cuda_stream') and self._get_gpu_location(
+                        sdfg, e.src) == gpu:
                     # If there are two or more CUDA streams involved in this
                     # edge, or the destination is unrelated to CUDA
                     if (not hasattr(e.dst, '_cuda_stream')
@@ -881,9 +880,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             src_location = 'Device' if src_storage == dtypes.StorageType.GPU_Global else 'Host'
             dst_location = 'Device' if dst_storage == dtypes.StorageType.GPU_Global else 'Host'
             if src_location == 'Device':
-                gpuid = self._get_gpu_location(sdfg,src_node)
+                gpuid = self._get_gpu_location(sdfg, src_node)
             else:
-                gpuid = self._get_gpu_location(sdfg,dst_node)
+                gpuid = self._get_gpu_location(sdfg, dst_node)
             # Corner case: A stream is writing to an array
             if (isinstance(sdfg.arrays[src_node.data], dt.Stream)
                     and isinstance(sdfg.arrays[dst_node.data],
@@ -926,7 +925,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                         syncwith[e.dst._cuda_stream] = e._cuda_event
 
                 if cudastream != 'nullptr':
-                    cudastream = '__state->gpu_context[%s]->streams[%d]' % (gpuid,cudastream)
+                    cudastream = '__state->gpu_context[%s]->streams[%d]' % (
+                        gpuid, cudastream)
 
             if memlet.wcr is not None:
                 raise NotImplementedError(
@@ -1021,7 +1021,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             else:
                 # Synchronize with other streams as necessary
                 for streamid, event in syncwith.items():
-                    syncstream = '__state->gpu_context[%s]->streams[%d]' % (gpuid, streamid)
+                    syncstream = '__state->gpu_context[%s]->streams[%d]' % (
+                        gpuid, streamid)
                     callsite_stream.write(
                         '''
     {backend}EventRecord(__state->gpu_context[{gpu_id}]->events[{ev}], {src_stream});
@@ -1167,17 +1168,26 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             if state.nosync == False:
                 streams_to_sync = set()
                 for node in state.sink_nodes():
-                    if hasattr(node, '_cuda_stream') and self._check_gpu_location(sdfg,node):
-                        streams_to_sync.add((self._get_gpu_location(sdfg,node),node._cuda_stream))
+                    if hasattr(node,
+                               '_cuda_stream') and self._check_gpu_location(
+                                   sdfg, node):
+                        streams_to_sync.add(
+                            (self._get_gpu_location(sdfg,
+                                                    node), node._cuda_stream))
                     else:
                         # Synchronize sink-node copies at the end of the state
                         for e in state.in_edges(node):
-                            if hasattr(e.src, '_cuda_stream') and self._check_gpu_location(sdfg, e.src):
-                                streams_to_sync.add((self._get_gpu_location(sdfg,e.src),e.src._cuda_stream))
+                            if hasattr(e.src, '_cuda_stream'
+                                       ) and self._check_gpu_location(
+                                           sdfg, e.src):
+                                streams_to_sync.add(
+                                    (self._get_gpu_location(sdfg, e.src),
+                                     e.src._cuda_stream))
                 for stream in streams_to_sync:
                     callsite_stream.write(
                         '%sStreamSynchronize(__state->gpu_context[%s]->streams[%d]);'
-                        % (self.backend, stream[0], stream[1]), sdfg, sdfg.node_id(state))
+                        % (self.backend, stream[0], stream[1]), sdfg,
+                        sdfg.node_id(state))
 
             # After synchronizing streams, generate state footer normally
             callsite_stream.write('\n')
@@ -1336,7 +1346,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
 for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
 '''.format(scope=scope_entry.params[0],
             scopebeginning=scope_entry.map.range.ranges[0][0],
-            scopeEnd=scope_entry.map.range.ranges[0][1]))
+            scopeEnd=scope_entry.map.range.ranges[0][1] + 1))
             to_allocate = dace.sdfg.local_transients(sdfg, dfg_scope,
                                                      scope_entry)
             allocated = set()
@@ -1560,7 +1570,8 @@ for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
             max_streams = int(
                 Config.get('compiler', 'cuda', 'max_concurrent_streams'))
             if max_streams >= 0:
-                cudastream = '__state->gpu_context[%s]->streams[%d]' % (scope_entry.location['gpu'],scope_entry._cuda_stream)
+                cudastream = '__state->gpu_context[%s]->streams[%d]' % (
+                    scope_entry.location['gpu'], scope_entry._cuda_stream)
             else:
                 cudastream = 'nullptr'
 
@@ -1605,7 +1616,10 @@ for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
                     ev = e._cuda_event
                     callsite_stream.write(
                         'DACE_CUDA_CHECK({backend}EventSynchronize(__state->gpu_context[{gpu_id}]->events[{ev}]));'
-                        .format(gpu_id = self._get_gpu_location(sdfg,scope_entry),ev=ev, backend=self.backend), sdfg, state_id,
+                        .format(gpu_id=self._get_gpu_location(
+                            sdfg, scope_entry),
+                                ev=ev,
+                                backend=self.backend), sdfg, state_id,
                         [e.src, e.dst])
                 callsite_stream.write(
                     self._cpu_codegen.memlet_definition(
