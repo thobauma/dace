@@ -55,11 +55,6 @@ class LocalStorage(xf.Transformation, ABC):
         b = candidate[LocalStorage.node_b]
         return '%s -> %s' % (a, b)
 
-    @staticmethod
-    def annotates_memlets():
-        # Skip memlet propagation for now
-        return True
-
     def apply(self, sdfg):
         graph = sdfg.nodes()[self.state_id]
         node_a = self.node_a(sdfg)
