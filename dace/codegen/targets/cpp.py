@@ -22,7 +22,7 @@ from dace.frontend import operations
 from dace.frontend.python.astutils import ExtNodeTransformer, rname, unparse
 from dace.sdfg import nodes
 from dace.properties import LambdaProperty
-from dace.sdfg import SDFG, is_devicelevel_gpu
+from dace.sdfg import SDFG, SDFGState, is_devicelevel_gpu
 
 
 def copy_expr(
@@ -1075,8 +1075,12 @@ def presynchronize_streams(sdfg, dfg, state_id, node, callsite_stream):
         return
     backend = Config.get('compiler', 'cuda', 'backend')
     for e in state_dfg.in_edges(node):
-        if hasattr(e.src, "_cuda_stream"):
-            cudastream = "__state->gpu_context->streams[%d]" % e.src._cuda_stream
+        gpu_id = get_gpu_location(sdfg, e.src)
+        if hasattr(e.src, "_cuda_stream") and gpu_id in e.src._cuda_stream:
+            cudastream = "__state->gpu_context[%s]->streams[%d]" % (
+                gpu_id,
+                e.src._cuda_stream,
+            )
             callsite_stream.write(
                 "%sStreamSynchronize(%s);" % (backend, cudastream),
                 sdfg,
@@ -1085,26 +1089,42 @@ def presynchronize_streams(sdfg, dfg, state_id, node, callsite_stream):
             )
 
 
+def get_gpu_location(state: Union[SDFG, SDFGState],
+                     node_or_array: Union[data.Data, nodes.Node]):
+    gpu_location = None
+    if isinstance(node_or_array, nodes.AccessNode):
+        node_or_array = node_or_array.desc(state)
+    if hasattr(node_or_array, 'location') and 'gpu' in node_or_array.location:
+        gpu_location = node_or_array.location['gpu']
+    return gpu_location
+
+
 # TODO: This should be in the CUDA code generator. Add appropriate conditions to node dispatch predicate
 def synchronize_streams(sdfg, dfg, state_id, node, scope_exit, callsite_stream):
     # Post-kernel stream synchronization (with host or other streams)
     max_streams = int(Config.get("compiler", "cuda", "max_concurrent_streams"))
     backend = Config.get('compiler', 'cuda', 'backend')
+
     if max_streams >= 0:
-        cudastream = "__state->gpu_context->streams[%d]" % node._cuda_stream
+        gpu_id = get_gpu_location(sdfg, node)
+        cudastream = "__state->gpu_context[%s]->streams[%d]" % (
+            gpu_id, node._cuda_stream[gpu_id])
         for edge in dfg.out_edges(scope_exit):
             # Synchronize end of kernel with output data (multiple kernels
             # lead to same data node)
+            ed_gpu_id = get_gpu_location(sdfg, edge.dst)
             if (isinstance(edge.dst, nodes.AccessNode)
-                    and edge.dst._cuda_stream != node._cuda_stream):
+                    and edge.dst._cuda_stream[ed_gpu_id] !=
+                    node._cuda_stream[gpu_id]):
                 callsite_stream.write(
-                    """{backend}EventRecord(__state->gpu_context->events[{ev}], {src_stream});
-{backend}StreamWaitEvent(__state->gpu_context->streams[{dst_stream}], __state->gpu_context->events[{ev}], 0);"""
+                    """{backend}EventRecord(__state->gpu_context[{gid}]->events[{ev}], {src_stream});
+{backend}StreamWaitEvent(__state->gpu_context[{gid}]->streams[{dst_stream}], __state->gpu_context[{gid}]->events[{ev}], 0);"""
                     .format(
+                        gid=gpu_id,
                         ev=edge._cuda_event
                         if hasattr(edge, "_cuda_event") else 0,
                         src_stream=cudastream,
-                        dst_stream=edge.dst._cuda_stream,
+                        dst_stream=edge.dst._cuda_stream[ed_gpu_id],
                         backend=backend,
                     ),
                     sdfg,
@@ -1115,20 +1135,24 @@ def synchronize_streams(sdfg, dfg, state_id, node, scope_exit, callsite_stream):
 
             # We need the streams leading out of the output data
             for e in dfg.out_edges(edge.dst):
+                e_gpu_id = get_gpu_location(sdfg, e.dst)
                 if isinstance(e.dst, nodes.AccessNode):
                     continue
                 # If no stream at destination: synchronize stream with host.
-                if not hasattr(e.dst, "_cuda_stream"):
+                if not hasattr(
+                        e.dst,
+                        "_cuda_stream") or not e_gpu_id in e.dst._cuda_stream:
                     pass
                     # Done at destination
 
                 # If different stream at destination: record event and wait
                 # for it in target stream.
-                elif e.dst._cuda_stream != node._cuda_stream:
+                elif e.dst._cuda_stream[e_gpu_id] != node._cuda_stream[gpu_id]:
                     callsite_stream.write(
-                        """{backend}EventRecord(__state->gpu_context->events[{ev}], {src_stream});
-    {backend}StreamWaitEvent(__state->gpu_context->streams[{dst_stream}], __state->gpu_context->events[{ev}], 0);"""
+                        """{backend}EventRecord(__state->gpu_context[{gid}]->events[{ev}], {src_stream});
+    {backend}StreamWaitEvent(__state->gpu_context[{gid}]->streams[{dst_stream}], __state->gpu_context->events[{ev}], 0);"""
                         .format(
+                            gid=e_gpu_id,
                             ev=e._cuda_event
                             if hasattr(e, "_cuda_event") else 0,
                             src_stream=cudastream,
