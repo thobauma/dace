@@ -599,7 +599,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 min_map_range = map_range.min_element()[dim_index]
                 max_map_range = map_range.max_element()[dim_index]
                 stride_map_range = map_range.strides()[dim_index]
-                gpu_vals.update(range(min_map_range, max_map_range, stride_map_range))
+                gpu_vals.update(range(min_map_range, max_map_range+1, stride_map_range))
 
         if len(gpu_vals) == 0:
             if default_gpu == -1:
