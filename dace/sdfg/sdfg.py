@@ -945,6 +945,11 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
             defined_syms |= set(e.data.new_symbols({}).keys())
             free_syms |= e.data.free_symbols
 
+        # temporary fix
+        for node, _ in self.all_nodes_recursive():
+            if isinstance(node, nd.MapEntry):
+                defined_syms |= set(node.map.params)
+
         defined_syms |= set(self.constants.keys())
 
         # Subtract symbols defined in inter-state edges and constants
@@ -1335,18 +1340,18 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
         return self.add_datadesc(name, desc, find_new_name=find_new_name), desc
 
     def add_view(self,
-                  name: str,
-                  shape,
-                  dtype,
-                  storage=dtypes.StorageType.Default,
-                  strides=None,
-                  offset=None,
-                  debuginfo=None,
-                  allow_conflicts=False,
-                  total_size=None,
-                  find_new_name=False,
-                  alignment=0,
-                  may_alias=False) -> Tuple[str, dt.View]:
+                 name: str,
+                 shape,
+                 dtype,
+                 storage=dtypes.StorageType.Default,
+                 strides=None,
+                 offset=None,
+                 debuginfo=None,
+                 allow_conflicts=False,
+                 total_size=None,
+                 find_new_name=False,
+                 alignment=0,
+                 may_alias=False) -> Tuple[str, dt.View]:
         """ Adds a view to the SDFG data descriptor store. """
 
         # convert strings to int if possible
@@ -1362,17 +1367,17 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
             dtype = dtypes.typeclass(dtype)
 
         desc = dt.View(dtype,
-                        shape,
-                        storage=storage,
-                        allow_conflicts=allow_conflicts,
-                        transient=True,
-                        strides=strides,
-                        offset=offset,
-                        lifetime=dtypes.AllocationLifetime.Scope,
-                        alignment=alignment,
-                        debuginfo=debuginfo,
-                        total_size=total_size,
-                        may_alias=may_alias)
+                       shape,
+                       storage=storage,
+                       allow_conflicts=allow_conflicts,
+                       transient=True,
+                       strides=strides,
+                       offset=offset,
+                       lifetime=dtypes.AllocationLifetime.Scope,
+                       alignment=alignment,
+                       debuginfo=debuginfo,
+                       total_size=total_size,
+                       may_alias=may_alias)
 
         return self.add_datadesc(name, desc, find_new_name=find_new_name), desc
 
@@ -1728,12 +1733,10 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
                     ','.join(['argv_' + str(i)
                               for i in range(len(sys.argv))]) + '\n')
                 launchfiles_file.write(
-                    sdfg.name + ',' +
-                    os.path.abspath(os.path.join(sdfg.build_folder,
-                                                 'program.sdfg')) + ',' +
-                    os.path.abspath(os.path.join('_dacegraphs',
-                                                 'program.sdfg')) + ',' +
-                    os.path.abspath(sys.argv[0]) + ',' +
+                    sdfg.name + ',' + os.path.abspath(
+                        os.path.join(sdfg.build_folder, 'program.sdfg')) + ',' +
+                    os.path.abspath(os.path.join('_dacegraphs', 'program.sdfg'))
+                    + ',' + os.path.abspath(sys.argv[0]) + ',' +
                     ','.join([str(el) for el in sys.argv]))
 
         # Get the function handle
