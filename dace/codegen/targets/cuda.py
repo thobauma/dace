@@ -218,8 +218,8 @@ int __dace_init_cuda({sdfg.name}_t *__state{params}) {{
     }}
 
     int gpu_devices[{ngpus}]={{{list_gpus}}};
-    int n_streams[{ngpus}]={{{list_streams}}};
-    int n_events[{ngpus}]={{{list_events}}};
+    int n_streams = {nstreams};
+    int n_events = {nevents};
 
     __state->gpu_context = new std::vector<dace::cuda::Context>;
 
@@ -240,10 +240,10 @@ int __dace_init_cuda({sdfg.name}_t *__state{params}) {{
         {backend}Free(dev_X);
 
         // Create {backend} streams and events
-        for(int j = 0; j < n_streams[i]; ++j) {{
+        for(int j = 0; j < n_streams; ++j) {{
             {backend}StreamCreateWithFlags(&__state->gpu_context->at(gpu_devices[i]).streams[i], {backend}StreamNonBlocking);
         }}
-        for(int j = 0; j < n_events[i]; ++j) {{
+        for(int j = 0; j < n_events; ++j) {{
             {backend}EventCreateWithFlags(&__state->gpu_context->at(gpu_devices[i]).events[i], {backend}EventDisableTiming);
         }}
 
@@ -265,16 +265,16 @@ void __dace_exit_cuda({sdfg.name}_t *__state) {{
     {exitcode}
 
     int gpu_devices[{ngpus}]={{{list_gpus}}};
-    int n_streams[{ngpus}]={{{list_streams}}};
-    int n_events[{ngpus}]={{{list_events}}};
+    int n_streams = {nstreams};
+    int n_events = {nevents};
 
     for(int i = 0; i < {ngpus}; ++i)
     {{
         // Destroy {backend} streams and events
-        for(int j = 0; j < n_streams[i]; ++j) {{
+        for(int j = 0; j < n_streams; ++j) {{
             {backend}StreamDestroy(__state->gpu_context->at(gpu_devices[i]).streams[i]);
         }}
-        for(int j = 0; j < n_events[i]; ++j) {{
+        for(int j = 0; j < n_events; ++j) {{
             {backend}EventDestroy(__state->gpu_context->at(gpu_devices[i]).events[i]);
         }}
     }}
@@ -292,8 +292,8 @@ void __dace_exit_cuda({sdfg.name}_t *__state) {{
             # hack, should create Context with right amount of streams, events
             nstreams=max(self._cuda_streams.values()),
             nevents=max(self._cuda_events.values()),
-            list_streams=", ".join(map(str, self._cuda_streams.values())),
-            list_events=", ".join(map(str, self._cuda_events.values())),
+            # list_streams=", ".join(map(str, self._cuda_streams.values())),
+            # list_events=", ".join(map(str, self._cuda_events.values())),
             backend=self.backend,
             backend_header=backend_header,
             gpu_device=self._default_gpu,
