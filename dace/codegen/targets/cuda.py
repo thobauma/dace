@@ -241,10 +241,10 @@ int __dace_init_cuda({sdfg.name}_t *__state{params}) {{
 
         // Create {backend} streams and events
         for(int j = 0; j < n_streams[i]; ++j) {{
-            {backend}StreamCreateWithFlags(&__state->gpu_context[gpu_devices[i]]->streams[i], {backend}StreamNonBlocking);
+            {backend}StreamCreateWithFlags(&__state->gpu_context[gpu_devices[i]].streams[i], {backend}StreamNonBlocking);
         }}
         for(int j = 0; j < n_events[i]; ++j) {{
-            {backend}EventCreateWithFlags(&__state->gpu_context[gpu_devices[i]]->events[i], {backend}EventDisableTiming);
+            {backend}EventCreateWithFlags(&__state->gpu_context[gpu_devices[i]].events[i], {backend}EventDisableTiming);
         }}
 
         // Enable peer access
@@ -272,15 +272,11 @@ void __dace_exit_cuda({sdfg.name}_t *__state) {{
     {{
         // Destroy {backend} streams and events
         for(int j = 0; j < n_streams[i]; ++j) {{
-            {backend}StreamDestroy(__state->gpu_context[gpu_devices[i]]->streams[i]);
+            {backend}StreamDestroy(__state->gpu_context[gpu_devices[i]].streams[i]);
         }}
         for(int j = 0; j < n_events[i]; ++j) {{
-            {backend}EventDestroy(__state->gpu_context[gpu_devices[i]]->events[i]);
+            {backend}EventDestroy(__state->gpu_context[gpu_devices[i]].events[i]);
         }}
-    }}
-    for(int i = 0; i < {ngpus}; ++i)
-    {{
-        delete __state->gpu_context[gpu_devices[i]];
     }}
     delete __state->gpu_context;
 }}
@@ -945,7 +941,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                         syncwith[e.dst._cuda_stream[gpuid]] = e._cuda_event
 
                 if cudastream != 'nullptr':
-                    cudastream = '__state->gpu_context[%s]->streams[%d]' % (
+                    cudastream = '__state->gpu_context[%s].streams[%d]' % (
                         gpuid, cudastream)
 
             if memlet.wcr is not None:
@@ -1041,12 +1037,12 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             else:
                 # Synchronize with other streams as necessary
                 for streamid, event in syncwith.items():
-                    syncstream = '__state->gpu_context[%s]->streams[%d]' % (
+                    syncstream = '__state->gpu_context[%s].streams[%d]' % (
                         gpuid, streamid)
                     callsite_stream.write(
                         '''
-    {backend}EventRecord(__state->gpu_context[{gpu_id}]->events[{ev}], {src_stream});
-    {backend}StreamWaitEvent({dst_stream}, __state->gpu_context[{gpu_id}]->events[{ev}], 0);
+    {backend}EventRecord(__state->gpu_context[{gpu_id}].events[{ev}], {src_stream});
+    {backend}StreamWaitEvent({dst_stream}, __state->gpu_context[{gpu_id}].events[{ev}], 0);
                     '''.format(gpu_id=gpuid,
                                ev=event,
                                src_stream=cudastream,
@@ -1203,7 +1199,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                 streams_to_sync.add((gpuid,e.src._cuda_stream[gpuid]))
                 for stream in streams_to_sync:
                     callsite_stream.write(
-                        '%sStreamSynchronize(__state->gpu_context[%s]->streams[%d]);'
+                        '%sStreamSynchronize(__state->gpu_context[%s].streams[%d]);'
                         % (self.backend, stream[0], stream[1]), sdfg,
                         sdfg.node_id(state))
 
@@ -1589,7 +1585,7 @@ for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
                 Config.get('compiler', 'cuda', 'max_concurrent_streams'))
             if max_streams >= 0:
                 gpuid = self._get_gpu_location(sdfg,scope_entry)
-                cudastream = '__state->gpu_context[%s]->streams[%d]' % (
+                cudastream = '__state->gpu_context[%s].streams[%d]' % (
                     gpuid, scope_entry._cuda_stream[gpuid])
             else:
                 cudastream = 'nullptr'
@@ -1634,7 +1630,7 @@ for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
                 if hasattr(e, '_cuda_event'):
                     ev = e._cuda_event
                     callsite_stream.write(
-                        'DACE_CUDA_CHECK({backend}EventSynchronize(__state->gpu_context[{gpu_id}]->events[{ev}]));'
+                        'DACE_CUDA_CHECK({backend}EventSynchronize(__state->gpu_context[{gpu_id}].events[{ev}]));'
                         .format(gpu_id=self._get_gpu_location(
                             sdfg, scope_entry),
                                 ev=ev,
