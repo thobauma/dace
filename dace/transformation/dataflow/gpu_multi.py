@@ -142,9 +142,8 @@ class GPUMultiTransformMap(transformation.Transformation):
         in_data = []
         for e in graph.in_edges(outer_map_entry):
             node = e.src
-            data = node.desc(sdfg)
-            if isinstance(node,
-                          nodes.AccessNode) and not isinstance(data, Scalar):
+            if isinstance(node, nodes.AccessNode) and not isinstance(
+                    node.desc(sdfg), Scalar):
                 in_data.append(node.data)
         prefix = "gpu_multi_"
         out_data = []
@@ -162,9 +161,8 @@ class GPUMultiTransformMap(transformation.Transformation):
 
         for e in graph.out_edges(outer_map_exit):
             node = e.dst
-            data = node.desc(sdfg)
-            if isinstance(node,
-                          nodes.AccessNode) and not isinstance(data, Scalar):
+            if isinstance(node, nodes.AccessNode) and not isinstance(
+                    node.desc(sdfg), Scalar):
                 data_name = node.data
                 if prefix + data_name in sdfg.arrays:
                     out_data.append((data_name, False))
