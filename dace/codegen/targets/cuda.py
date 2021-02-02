@@ -589,7 +589,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             gpu_id = self._get_gpu_location(graph, node)
             if gpu_id != None:
                 gpus.add(gpu_id)
-                if type(gpu_id) == int:
+                if gpu_id.is_number:
                     gpu_vals.add(gpu_id)
             if (isinstance(node, nodes.EntryNode)
                     and node.schedule is dace.dtypes.ScheduleType.GPU_Multiple):
