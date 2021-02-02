@@ -241,10 +241,10 @@ int __dace_init_cuda({sdfg.name}_t *__state{params}) {{
 
         // Create {backend} streams and events
         for(int j = 0; j < n_streams; ++j) {{
-            {backend}StreamCreateWithFlags(&__state->gpu_context->at(gpu_devices[i]).streams[i], {backend}StreamNonBlocking);
+            {backend}StreamCreateWithFlags(&__state->gpu_context->at(gpu_devices[i]).streams[j], {backend}StreamNonBlocking);
         }}
         for(int j = 0; j < n_events; ++j) {{
-            {backend}EventCreateWithFlags(&__state->gpu_context->at(gpu_devices[i]).events[i], {backend}EventDisableTiming);
+            {backend}EventCreateWithFlags(&__state->gpu_context->at(gpu_devices[i]).events[j], {backend}EventDisableTiming);
         }}
 
         // Enable peer access
@@ -272,10 +272,10 @@ void __dace_exit_cuda({sdfg.name}_t *__state) {{
     {{
         // Destroy {backend} streams and events
         for(int j = 0; j < n_streams; ++j) {{
-            {backend}StreamDestroy(__state->gpu_context->at(gpu_devices[i]).streams[i]);
+            {backend}StreamDestroy(__state->gpu_context->at(gpu_devices[i]).streams[j]);
         }}
         for(int j = 0; j < n_events; ++j) {{
-            {backend}EventDestroy(__state->gpu_context->at(gpu_devices[i]).events[i]);
+            {backend}EventDestroy(__state->gpu_context->at(gpu_devices[i]).events[j]);
         }}
     }}
     delete __state->gpu_context;
