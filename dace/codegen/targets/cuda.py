@@ -226,7 +226,7 @@ int __dace_init_cuda({sdfg.name}_t *__state{params}) {{
     // Enable peer-to-peer access
     for(int i = 0; i < {ngpus}; ++i)
     {{
-        __state->gpu_context->emplace_back(n_streams[i],n_events[i]);
+        __state->gpu_context.emplace_back(n_streams,n_events);
 
         if({backend}SetDevice(gpu_devices[i]) != {backend}Success)
         {{
