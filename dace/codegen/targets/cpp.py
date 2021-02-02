@@ -692,7 +692,7 @@ def unparse_tasklet(sdfg, state_id, dfg, node, function_stream, callsite_stream,
         if (max_streams >= 0 and not is_devicelevel_gpu(sdfg, state_dfg, node)
                 and hasattr(node, "_cuda_stream")):
             callsite_stream.write(
-                'int __dace_current_stream_id = %d;\n%sStream_t __dace_current_stream = __state->gpu_context[%s].streams[__dace_current_stream_id];'
+                'int __dace_current_stream_id = %d;\n%sStream_t __dace_current_stream = __state->gpu_context->at(%s).streams[__dace_current_stream_id];'
                 %
                 (node._cuda_stream,Config.get('compiler', 'cuda', 'backend'), get_gpu_location(node)),
                 sdfg,
@@ -1077,7 +1077,7 @@ def presynchronize_streams(sdfg, dfg, state_id, node, callsite_stream):
     for e in state_dfg.in_edges(node):
         gpu_id = get_gpu_location(sdfg, e.src)
         if hasattr(e.src, "_cuda_stream") and gpu_id in e.src._cuda_stream:
-            cudastream = "__state->gpu_context[%s].streams[%d]" % (
+            cudastream = "__state->gpu_context->at(%s).streams[%d]" % (
                 gpu_id,
                 e.src._cuda_stream,
             )
@@ -1107,7 +1107,7 @@ def synchronize_streams(sdfg, dfg, state_id, node, scope_exit, callsite_stream):
 
     if max_streams >= 0:
         gpu_id = get_gpu_location(sdfg, node)
-        cudastream = "__state->gpu_context[%s].streams[%d]" % (
+        cudastream = "__state->gpu_context->at(%s).streams[%d]" % (
             gpu_id, node._cuda_stream[gpu_id])
         for edge in dfg.out_edges(scope_exit):
             # Synchronize end of kernel with output data (multiple kernels
@@ -1117,8 +1117,8 @@ def synchronize_streams(sdfg, dfg, state_id, node, scope_exit, callsite_stream):
                     and edge.dst._cuda_stream[ed_gpu_id] !=
                     node._cuda_stream[gpu_id]):
                 callsite_stream.write(
-                    """{backend}EventRecord(__state->gpu_context[{gid}].events[{ev}], {src_stream});
-{backend}StreamWaitEvent(__state->gpu_context[{gid}]->streams[{dst_stream}], __state->gpu_context[{gid}].events[{ev}], 0);"""
+                    """{backend}EventRecord(__state->gpu_context->at({gid}).events[{ev}], {src_stream});
+{backend}StreamWaitEvent(__state->gpu_context->at({gid})->streams[{dst_stream}], __state->gpu_context->at({gid}).events[{ev}], 0);"""
                     .format(
                         gid=gpu_id,
                         ev=edge._cuda_event
@@ -1149,8 +1149,8 @@ def synchronize_streams(sdfg, dfg, state_id, node, scope_exit, callsite_stream):
                 # for it in target stream.
                 elif e.dst._cuda_stream[e_gpu_id] != node._cuda_stream[gpu_id]:
                     callsite_stream.write(
-                        """{backend}EventRecord(__state->gpu_context[{gid}].events[{ev}], {src_stream});
-    {backend}StreamWaitEvent(__state->gpu_context[{gid}]->streams[{dst_stream}], __state->gpu_context.events[{ev}], 0);"""
+                        """{backend}EventRecord(__state->gpu_context->at({gid}).events[{ev}], {src_stream});
+    {backend}StreamWaitEvent(__state->gpu_context->at({gid})->streams[{dst_stream}], __state->gpu_context->at({gid}).events[{ev}], 0);"""
                         .format(
                             gid=e_gpu_id,
                             ev=e._cuda_event
