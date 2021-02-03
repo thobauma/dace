@@ -92,7 +92,7 @@ class LocalStorage(xf.Transformation, ABC):
             # Add transient array
             new_data, _ = sdfg.add_array(
                 prefix + invariant_memlet.data, [
-                    symbolic.overapproximate(r)
+                    symbolic.overapproximate(r).simplify()
                     for r in invariant_memlet.bounding_box_size()
                 ],
                 sdfg.arrays[invariant_memlet.data].dtype,

@@ -945,11 +945,6 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
             defined_syms |= set(e.data.new_symbols({}).keys())
             free_syms |= e.data.free_symbols
 
-        # temporary fix
-        for node, _ in self.all_nodes_recursive():
-            if isinstance(node, nd.MapEntry):
-                defined_syms |= set(node.map.params)
-
         defined_syms |= set(self.constants.keys())
 
         # Subtract symbols defined in inter-state edges and constants

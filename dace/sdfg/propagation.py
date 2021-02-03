@@ -1428,7 +1428,7 @@ def propagate_subset(memlets: List[Memlet],
     # Number of accesses in the propagated memlet is the sum of the internal
     # number of accesses times the size of the map range set (unbounded dynamic)
     new_memlet.volume = (sum(m.volume for m in memlets) *
-                         functools.reduce(lambda a, b: a * b, rng.size(), 1))
+                         functools.reduce(lambda a, b: a * b, rng.size(), 1)).simplify()
     if any(m.dynamic for m in memlets):
         new_memlet.dynamic = True
     elif symbolic.issymbolic(new_memlet.volume) and any(
