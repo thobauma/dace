@@ -322,7 +322,8 @@ void __dace_exit_cuda({sdfg.name}_t *__state) {{
                 return True
             else:
                 for e in state.in_edges(node):
-                    if hasattr(e.src, '_cuda_stream') and gpu in e.src._cuda_stream:
+                    if hasattr(e.src,
+                               '_cuda_stream') and gpu in e.src._cuda_stream:
                         return True
         return False
 
@@ -599,7 +600,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 min_map_range = map_range.min_element()[dim_index]
                 max_map_range = map_range.max_element()[dim_index]
                 stride_map_range = map_range.strides()[dim_index]
-                gpu_vals.update(range(min_map_range, max_map_range+1, stride_map_range))
+                gpu_vals.update(
+                    range(min_map_range, max_map_range + 1, stride_map_range))
 
         if len(gpu_vals) == 0:
             if default_gpu == -1:
@@ -847,7 +849,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                          or not gpu in e.dst._cuda_stream) or
                             e.src._cuda_stream[gpu] != e.dst._cuda_stream[gpu]):
                         for mpe in state.memlet_path(e):
-                            mpe._cuda_event=events
+                            mpe._cuda_event = events
                         events += 1
 
             state_events.append(events)
@@ -909,17 +911,21 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             max_streams = int(
                 Config.get('compiler', 'cuda', 'max_concurrent_streams'))
 
-
-            if hasattr(src_node, '_cuda_stream') and gpuid  in src_node._cuda_stream:
+            if hasattr(src_node,
+                       '_cuda_stream') and gpuid in src_node._cuda_stream:
                 cudastream = src_node._cuda_stream[gpuid]
-                if not hasattr(dst_node, '_cuda_stream') or not gpuid in dst_node._cuda_stream:
+                if not hasattr(
+                        dst_node,
+                        '_cuda_stream') or not gpuid in dst_node._cuda_stream:
                     # Copy after which data is needed by the host
                     is_sync = True
-                elif dst_node._cuda_stream[gpuid] != src_node._cuda_stream[gpuid]:
+                elif dst_node._cuda_stream[gpuid] != src_node._cuda_stream[
+                        gpuid]:
                     syncwith[dst_node._cuda_stream[gpuid]] = edge._cuda_event
                 else:
                     pass  # Otherwise, no need to synchronize
-            elif hasattr(dst_node, '_cuda_stream') and gpuid in dst_node._cuda_stream:
+            elif hasattr(dst_node,
+                         '_cuda_stream') and gpuid in dst_node._cuda_stream:
                 cudastream = dst_node._cuda_stream[gpuid]
             else:
                 if max_streams >= 0:
@@ -933,7 +939,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 for e in state_dfg.out_edges(dst_node):
                     if isinstance(e.dst, nodes.AccessNode):
                         continue
-                    if not hasattr(e.dst, '_cuda_stream') or not gpuid in e.dst._cuda_stream:
+                    if not hasattr(
+                            e.dst,
+                            '_cuda_stream') or not gpuid in e.dst._cuda_stream:
                         is_sync = True
                     elif not hasattr(e, '_cuda_event'):
                         is_sync = True
@@ -1188,7 +1196,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                '_cuda_stream') and self._check_gpu_location(
                                    sdfg, node):
                         gpuid = self._get_gpu_location(sdfg, node)
-                        streams_to_sync.add((gpuid,node._cuda_stream[gpuid]))
+                        streams_to_sync.add((gpuid, node._cuda_stream[gpuid]))
                     else:
                         # Synchronize sink-node copies at the end of the state
                         for e in state.in_edges(node):
@@ -1196,7 +1204,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                        ) and self._check_gpu_location(
                                            sdfg, e.src):
                                 gpuid = self._get_gpu_location(sdfg, e.src)
-                                streams_to_sync.add((gpuid,e.src._cuda_stream[gpuid]))
+                                streams_to_sync.add(
+                                    (gpuid, e.src._cuda_stream[gpuid]))
                 for stream in streams_to_sync:
                     callsite_stream.write(
                         '%sStreamSynchronize(__state->gpu_context->at(%s).streams[%d]);'
@@ -1356,7 +1365,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                             str(scope_entry.map.schedule))
         if scope_entry.map.schedule == dtypes.ScheduleType.GPU_Multiple:
             callsite_stream.write('''{{
-#pragma omp parallel for
+#pragma omp parallel for num_threads({scopeEnd})
 for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
 '''.format(scope=scope_entry.params[0],
             scopebeginning=scope_entry.map.range.ranges[0][0],
@@ -1584,7 +1593,7 @@ for(int {scope} = {scopebeginning}; {scope} < {scopeEnd}; {scope}++){{
             max_streams = int(
                 Config.get('compiler', 'cuda', 'max_concurrent_streams'))
             if max_streams >= 0:
-                gpuid = self._get_gpu_location(sdfg,scope_entry)
+                gpuid = self._get_gpu_location(sdfg, scope_entry)
                 cudastream = '__state->gpu_context->at(%s).streams[%d]' % (
                     gpuid, scope_entry._cuda_stream[gpuid])
             else:
