@@ -694,7 +694,7 @@ def unparse_tasklet(sdfg, state_id, dfg, node, function_stream, callsite_stream,
             callsite_stream.write(
                 'int __dace_current_stream_id = %d;\n%sStream_t __dace_current_stream = __state->gpu_context->at(%s).streams[__dace_current_stream_id];'
                 %
-                (node._cuda_stream,Config.get('compiler', 'cuda', 'backend'), get_gpu_location(node)),
+                (node._cuda_stream,Config.get('compiler', 'cuda', 'backend'), get_gpu_location(sdfg,node)),
                 sdfg,
                 state_id,
                 node,
