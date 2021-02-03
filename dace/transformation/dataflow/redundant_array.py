@@ -13,8 +13,8 @@ from dace.sdfg import graph
 from dace.transformation import transformation as pm
 from dace.config import Config
 
-
 # Helper methods #############################################################
+
 
 def _validate_subsets(edge: graph.MultiConnectorEdge,
                       arrays: typing.Dict[str, data.Data],
@@ -70,6 +70,7 @@ def _validate_subsets(edge: graph.MultiConnectorEdge,
 
     return src_subset, dst_subset
 
+
 ##############################################################################
 
 
@@ -109,6 +110,8 @@ class RedundantArray(pm.Transformation):
         # Make sure that both arrays are using the same storage location
         # and are of the same type (e.g., Stream->Stream)
         if in_desc.storage != out_desc.storage:
+            return False
+        if in_desc.location != out_desc.location:
             return False
         if type(in_desc) != type(out_desc):
             return False
@@ -212,6 +215,8 @@ class RedundantSecondArray(pm.Transformation):
         # and are of the same type (e.g., Stream->Stream)
         if in_desc.storage != out_desc.storage:
             return False
+        if in_desc.location != out_desc.location:
+            return False
         if type(in_desc) != type(out_desc):
             return False
 
@@ -255,7 +260,8 @@ class RedundantSecondArray(pm.Transformation):
             for e3 in path:
                 if e3 is not e2:
                     try:
-                        _validate_subsets(e3, sdfg.arrays,
+                        _validate_subsets(e3,
+                                          sdfg.arrays,
                                           src_name=out_array.data)
                     except NotImplementedError:
                         return False
