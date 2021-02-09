@@ -36,7 +36,7 @@ namespace cuda {
         gpuStream_t *streams;
         gpuEvent_t *events;
         
-        Context(): num_events{0}, num_streams{0}, streams{nullptr}, events{nullptr}{}
+        Context(): num_streams{0}, num_events{0}, streams{nullptr}, events{nullptr}{}
 
         Context(int nstreams, int nevents) : num_streams(nstreams), 
             num_events(nevents) {
