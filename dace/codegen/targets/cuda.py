@@ -198,6 +198,7 @@ class CUDACodeGen(TargetCodeGenerator):
         self._codeobject.code = """
 #include <{backend_header}>
 #include <dace/dace.h>
+#include <unordered_map>
 
 {file_header}
 
