@@ -724,6 +724,12 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             else:
                 node._cuda_stream = {gpu: stream}
 
+        def get_stream(node, gpu):
+            stream = None
+            if hasattr(node, '_cuda_stream'):
+                stream = node._cuda_stream[gpu]
+            return stream
+
         def add_cs_childpath(node, val, gpu):
             if hasattr(node, '_cs_childpath'):
                 node._cs_childpath[gpu] = val
@@ -732,17 +738,17 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
 
         def remove_cs_childpath(node, gpu):
             if hasattr(node, '_cs_childpath'):
-                node._cs_childpath.pop(gpu)
+                node._cs_childpath.pop(gpu, None)
                 if len(node._cs_childpath) == 0:
                     delattr(node, '_cs_childpath')
 
         def remove_stream(node, gpu):
             if hasattr(node, '_cuda_stream'):
-                node._cuda_stream.pop(gpu)
+                node._cuda_stream.pop(gpu, None)
                 if len(node._cuda_stream) == 0:
                     delattr(node, '_cuda_stream')
 
-        state_streams = []
+        state_streams = set()
         state_subsdfg_events = []
 
         for state in sdfg.nodes():
@@ -796,11 +802,10 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                         max_streams, max_events = self._compute_cudastreams(
                             e.dst.sdfg, gpu, e.dst._cuda_stream[gpu],
                             max_events + 1)
-
-            state_streams.append(max_streams if concurrent_streams ==
+            state_streams.add(max_streams if concurrent_streams ==
                                  0 else concurrent_streams)
             state_subsdfg_events.append(max_events)
-
+        
         # Remove CUDA streams from paths of non-gpu copies and CPU tasklets
         for node, graph in sdfg.all_nodes_recursive():
             if isinstance(graph, SDFGState):
@@ -812,15 +817,21 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     if hasattr(node,
                                '_cs_childpath') and gpu in node._cs_childpath:
                         remove_cs_childpath(node, gpu)
+                    curr_stream = get_stream(node)
+                    if  curr_stream is not None:
+                        state_streams.add(curr_stream)
                     continue
 
                 for e in graph.all_edges(node):
                     path = graph.memlet_path(e)
                     # If leading from/to a GPU memory node, keep stream
                     if ((isinstance(path[0].src, nodes.AccessNode)
-                         and gpu in path[0].src.desc(cur_sdfg).location) or
+                         and gpu in path[0].src.desc(cur_sdfg).location.values()) or
                         (isinstance(path[-1].dst, nodes.AccessNode)
-                         and gpu in path[-1].dst.desc(cur_sdfg).location)):
+                         and gpu in path[-1].dst.desc(cur_sdfg).location.values())):
+                        curr_stream = get_stream(node, gpu)
+                        if  curr_stream is not None:
+                            state_streams.add(curr_stream)
                         break
                     # If leading from/to a GPU tasklet, keep stream
                     if ((isinstance(path[0].src, nodes.CodeNode)
@@ -828,6 +839,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                             or
                         (isinstance(path[-1].dst, nodes.CodeNode) and
                          is_devicelevel_gpu(cur_sdfg, graph, path[-1].dst))):
+                        curr_stream = get_stream(node, gpu)
+                        if  curr_stream is not None:
+                            state_streams.add(curr_stream)
                         break
                 else:  # If we did not break, we do not need a CUDA stream
                     remove_stream(node, gpu)
@@ -856,6 +870,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             state_events.append(events)
 
         # Maximum over all states
+        state_streams.add(concurrent_streams if concurrent_streams >0 else 1)
         max_streams = max(state_streams)
         max_events = max(state_events)
 
