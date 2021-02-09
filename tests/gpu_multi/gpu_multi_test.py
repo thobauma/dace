@@ -29,7 +29,6 @@ def test_gpu_multi():
     Y = np.random.rand(size)
     Z = np.copy(Y)
 
-
     sdfg: dace.SDFG = axpyMultiGPU.to_sdfg()
     sdfg.apply_strict_transformations()
     sdfg.apply_transformations(GPUMultiTransformMap)

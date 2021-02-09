@@ -136,7 +136,7 @@ def test_three_gemm_strict():
 
 
 def test_three_gemm_not_strict():
-    a = 16
+    a = 32
 
     np.random.seed(0)
     m = a
@@ -180,10 +180,10 @@ def test_three_gemm_not_strict():
     sdfg.apply_transformations_repeated(RedundantSecondArray)
 
     # sdfg.view()
-    sdfg.compile()
-    # E = sdfg(A=A, B=B, C=C, D=D, M=m, K=k, N=n, L=l, O=o)
-    # assert np.allclose(E, (A @ B) @ (C @ D))
-    # print('PASS')
+    # sdfg.compile()
+    E = sdfg(A=A, B=B, C=C, D=D, M=m, K=k, N=n, L=l, O=o)
+    assert np.allclose(E, (A @ B) @ (C @ D))
+    print('PASS')
 
 
 if __name__ == "__main__":
