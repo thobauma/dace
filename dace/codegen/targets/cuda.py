@@ -818,9 +818,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     path = graph.memlet_path(e)
                     # If leading from/to a GPU memory node, keep stream
                     if ((isinstance(path[0].src, nodes.AccessNode)
-                         and path[0].src.desc(cur_sdfg).location == gpu) or
+                         and gpu in path[0].src.desc(cur_sdfg).location) or
                         (isinstance(path[-1].dst, nodes.AccessNode)
-                         and path[-1].dst.desc(cur_sdfg).location == gpu)):
+                         and gpu in path[-1].dst.desc(cur_sdfg).location)):
                         break
                     # If leading from/to a GPU tasklet, keep stream
                     if ((isinstance(path[0].src, nodes.CodeNode)
