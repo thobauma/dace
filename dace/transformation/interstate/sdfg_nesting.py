@@ -83,7 +83,8 @@ class InlineSDFG(transformation.Transformation):
             for k, v in nested_sdfg.symbol_mapping.items()
         }
         istrides = [
-            istr.subs(repldict) if symbolic.issymbolic(istr) else istr
+            # istr.subs(repldict) if symbolic.issymbolic(istr) else istr
+            istr.subs(istr,repldict[istr]) if symbolic.issymbolic(istr) else istr
             for istr in inner_strides
         ]
 
