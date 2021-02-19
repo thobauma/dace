@@ -24,6 +24,7 @@
 #include "perf/reporting.h"
 
 #if defined(__CUDACC__) || defined(__HIPCC__)
+#include <unordered_map>
 #include "cuda/cudacommon.cuh"
 #include "cuda/copy.cuh"
 #include "cuda/dynmap.cuh"

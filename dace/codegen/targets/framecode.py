@@ -137,7 +137,7 @@ struct {sdfg.name}_t {{
         # Write frame code - header
         global_stream.write(
             '/* DaCe AUTO-GENERATED FILE. DO NOT MODIFY */\n' +
-            '#include <dace/dace.h>\n'+'#include <unordered_map>\n', sdfg)
+            '#include <dace/dace.h>\n', sdfg)
 
         # Write header required by environments
         for env in self.environments:
