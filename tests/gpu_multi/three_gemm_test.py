@@ -105,7 +105,7 @@ def test_three_gemm_strict():
     D = np.random.rand(l, o).astype(np_dtype)
     dace.libraries.blas.default_implementation = 'cuBLAS'
 
-    sdfg: dace.SDFG = three_matmul_strict.to_sdfg()
+    sdfg: dace.SDFG = three_matmul_strict.to_sdfg(strict=True)
     sdfg.expand_library_nodes()
     print('expanded')
     sdfg.apply_strict_transformations()
@@ -142,11 +142,16 @@ def test_three_gemm_not_strict():
     gpuMain = 0
 
     np.random.seed(0)
-    m = a
-    k = a
-    n = a
-    l = a
-    o = a
+    # m = a
+    # k = a
+    # n = a
+    # l = a
+    # o = a
+    m = 1024
+    k = 2000
+    n = 3000
+    l = 900
+    o = 7777
     A = np.random.rand(m, k).astype(np_dtype)
     B = np.random.rand(k, n).astype(np_dtype)
     C = np.random.rand(n, l).astype(np_dtype)
