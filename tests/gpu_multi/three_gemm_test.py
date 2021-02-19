@@ -67,6 +67,7 @@ def nsdfg_set_gpu_location(sdfg: SDFG, gpu: int):
     tasklet = find_node_type(sdfg, graph, nodes.Tasklet)[0]
     set_gpu_location(sdfg, graph, tasklet, gpu)
 
+
 def test_gemm():
     a = 16
 
@@ -137,6 +138,8 @@ def test_three_gemm_strict():
 
 def test_three_gemm_not_strict():
     a = 32
+    gpuHelper = 1
+    gpuMain = 0
 
     np.random.seed(0)
     m = a
@@ -152,30 +155,26 @@ def test_three_gemm_not_strict():
 
     sdfg: dace.SDFG = three_matmul.to_sdfg()
     sdfg.expand_library_nodes()
-    m1sdfg = sdfg.sdfg_list[3]
-    m2sdfg = sdfg.sdfg_list[4]
-    m3sdfg = sdfg.sdfg_list[2]
-    binsdfg = sdfg.sdfg_list[1]
-    nsdfg_set_gpu_location(m1sdfg, 1)
-    nsdfg_set_gpu_location(m3sdfg, 1)
-    nsdfg_set_gpu_location(m2sdfg, 0)
+    mABsdfg = sdfg.sdfg_list[1]
+    mCDsdfg = sdfg.sdfg_list[2]
+    mEFsdfg = sdfg.sdfg_list[3]
+    nsdfg_set_gpu_location(mABsdfg, gpuMain)
+    nsdfg_set_gpu_location(mCDsdfg, gpuHelper)
+    nsdfg_set_gpu_location(mEFsdfg, gpuMain)
 
-    m1sdfg.arrays['_c'].location = {'gpu': 1}
-    m1sdfg.arrays['_c'].storage = StorageType.GPU_Global
-    m2sdfg.arrays['_c'].location = {'gpu': 0}
-    m2sdfg.arrays['_c'].storage = StorageType.GPU_Global
-    sdfg.arrays['M1'].location = {'gpu': 1}
+    mABsdfg.arrays['_c'].location = {'gpu': gpuMain}
+    mABsdfg.arrays['_c'].storage = StorageType.GPU_Global
+    mCDsdfg.arrays['_c'].location = {'gpu': gpuMain}
+    mCDsdfg.arrays['_c'].storage = StorageType.GPU_Global
+    sdfg.arrays['M1'].location = {'gpu': gpuMain}
     sdfg.arrays['M1'].storage = StorageType.GPU_Global
-    sdfg.arrays['M2'].location = {'gpu': 1}
+    sdfg.arrays['M2'].location = {'gpu': gpuMain}
     sdfg.arrays['M2'].storage = StorageType.GPU_Global
-    m3sdfg.arrays['_a'].location = {'gpu': 1}
-    m3sdfg.arrays['_a'].storage = StorageType.GPU_Global
-    m3sdfg.arrays['_b'].location = {'gpu': 1}
-    m3sdfg.arrays['_b'].storage = StorageType.GPU_Global
-    binsdfg.arrays['__tmp5'].location = {'gpu': 1}
-    binsdfg.arrays['__tmp5'].storage = StorageType.GPU_Global
-    binsdfg.arrays['__tmp6'].location = {'gpu': 1}
-    binsdfg.arrays['__tmp6'].storage = StorageType.GPU_Global
+    mEFsdfg.arrays['_a'].location = {'gpu': gpuMain}
+    mEFsdfg.arrays['_a'].storage = StorageType.GPU_Global
+    mEFsdfg.arrays['_b'].location = {'gpu': gpuMain}
+    mEFsdfg.arrays['_b'].storage = StorageType.GPU_Global
+
     sdfg.apply_transformations_repeated(RedundantArray)
     sdfg.apply_transformations_repeated(RedundantSecondArray)
 
