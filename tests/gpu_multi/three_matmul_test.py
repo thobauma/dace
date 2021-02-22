@@ -180,8 +180,8 @@ def test_three_gemm_not_strict():
     mEFsdfg.arrays['_b'].location = {'gpu': gpuMain}
     mEFsdfg.arrays['_b'].storage = StorageType.GPU_Global
 
-    sdfg.apply_transformations_repeated(RedundantArray)
-    sdfg.apply_transformations_repeated(RedundantSecondArray)
+    # sdfg.apply_transformations_repeated([RedundantArray, RedundantSecondArray])
+    sdfg.apply_strict_transformations()
 
     # sdfg.view()
     # sdfg.compile()
