@@ -68,7 +68,7 @@ def nsdfg_set_gpu_location(sdfg: SDFG, gpu: int):
     set_gpu_location(sdfg, graph, tasklet, gpu)
 
 
-def test_gemm():
+def test_matmul():
     a = 16
 
     np.random.seed(0)
@@ -90,7 +90,7 @@ def test_gemm():
     print('PASS')
 
 
-def test_three_gemm_strict():
+def test_three_matmul_strict():
     a = 16
 
     np.random.seed(0)
@@ -136,7 +136,7 @@ def test_three_gemm_strict():
     print('PASS')
 
 
-def test_three_gemm_not_strict():
+def test_three_matmul():
     a = 32
     gpuHelper = 1
     gpuMain = 0
@@ -191,6 +191,6 @@ def test_three_gemm_not_strict():
 
 
 if __name__ == "__main__":
-    test_three_gemm_not_strict()
-    # test_three_gemm_strict()
-    # test_gemm()
+    test_three_matmul()
+    # test_three_matmul_strict()
+    # test_matmul()
