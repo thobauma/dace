@@ -185,8 +185,13 @@ def test_three_matmul():
 
     # sdfg.view()
     # sdfg.compile()
+
     E = sdfg(A=A, B=B, C=C, D=D, M=m, K=k, N=n, L=l, O=o)
-    assert np.allclose(E, (A @ B) @ (C @ D))
+    res = (A @ B) @ (C @ D)
+    idx = zip(*np.where(~np.isclose(E, res, atol=0, rtol=1e-7)))
+    for i in idx:
+        print(i, E[i], res[i])
+    assert np.allclose(E, res)
     print('PASS')
 
 
