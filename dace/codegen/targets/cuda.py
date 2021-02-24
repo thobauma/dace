@@ -902,6 +902,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         
         src_gpuid = self._get_gpu_location(state_dfg, src_node)
         dst_gpuid = self._get_gpu_location(state_dfg, dst_node)
+        gpuid = src_gpuid if src_gpuid != None else dst_gpuid
 
         if (isinstance(src_node, nodes.AccessNode)
                 and isinstance(dst_node, nodes.AccessNode)
@@ -965,7 +966,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
 
                 if cudastream != 'nullptr':
                     cudastream = '__state->gpu_context->at(%s).streams[%d]' % (
-                        src_gpuid, cudastream)
+                        gpuid, cudastream)
 
             if memlet.wcr is not None:
                 raise NotImplementedError(
@@ -980,11 +981,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     self._cpu_codegen._packed_types))
             dims = len(copy_shape)
 
-            # need to check both, as it can be either cpu->gpu or gpu->cpu
-            if src_gpuid == None:
-                callsite_stream.write('%sSetDevice(%s);\n' % (self.backend, dst_gpuid))
-            else:
-                callsite_stream.write('%sSetDevice(%s);\n' % (self.backend, src_gpuid))
+            callsite_stream.write('%sSetDevice(%s);\n' % (self.backend, gpuid))
 
             dtype = dst_node.desc(sdfg).dtype
 
