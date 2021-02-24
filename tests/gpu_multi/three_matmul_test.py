@@ -32,17 +32,17 @@ def three_matmul(A: dtype[M, K], B: dtype[K, N], C: dtype[N, L], D: dtype[L,
                                                                           O]):
     M1 = matmul_lib(A, B)
     M2 = matmul_lib(C, D)
-
     return matmul_lib(M1, M2)
 
 
 @dace.program
-def three_matmul_strict(A: dtype[M, K], B: dtype[K, N], C: dtype[N, L],
-                        D: dtype[L, O]):
+def three_matmul_debug(A: dtype[M, K], B: dtype[K, N], C: dtype[N, L],
+                       D: dtype[L, O]):
     M1 = matmul_lib(A, B)
     M2 = matmul_lib(C, D)
-
-    return matmul_lib(M1, M2)
+    rM1 = M1
+    rM2 = M2
+    return matmul_lib(M1, M2), rM1, rM2
 
 
 def set_gpu_location(sdfg: SDFG, graph: SDFGState, codeNode: nodes.CodeNode,
@@ -87,52 +87,6 @@ def test_matmul():
 
     C = sdfg(A=A, B=B)
     assert np.allclose(C, (A @ B))
-    print('PASS')
-
-
-def test_three_matmul_strict():
-    a = 16
-
-    np.random.seed(0)
-    m = a
-    k = a
-    n = a
-    l = a
-    o = a
-    A = np.random.rand(m, k).astype(np_dtype)
-    B = np.random.rand(k, n).astype(np_dtype)
-    C = np.random.rand(n, l).astype(np_dtype)
-    D = np.random.rand(l, o).astype(np_dtype)
-    dace.libraries.blas.default_implementation = 'cuBLAS'
-
-    sdfg: dace.SDFG = three_matmul_strict.to_sdfg(strict=True)
-    sdfg.expand_library_nodes()
-    print('expanded')
-    sdfg.apply_strict_transformations()
-    print('strict_transformations')
-    graph = sdfg.nodes()[0]
-
-    tasklets = find_node_type(sdfg, graph, nodes.Tasklet)
-    nsdfg = find_node_type(sdfg, graph, nodes.NestedSDFG)[0].sdfg
-
-    set_gpu_location(sdfg, graph, tasklets[0], 1)
-    set_gpu_location(sdfg, graph, tasklets[1], 0)
-    sdfg.arrays['M1'].location = {'gpu': 1}
-    sdfg.arrays['M1'].storage = StorageType.GPU_Global
-
-    sdfg.arrays['M2'].location = {'gpu': 1}
-    sdfg.arrays['M2'].storage = StorageType.GPU_Global
-    ngraph = nsdfg.nodes()[0]
-    ntasklet = find_node_type(nsdfg, ngraph, nodes.Tasklet)[0]
-    set_gpu_location(sdfg, ngraph, ntasklet, 1)
-    nsdfg.arrays['__tmp5'].location = {'gpu': 1}
-    nsdfg.arrays['__tmp5'].storage = StorageType.GPU_Global
-    nsdfg.arrays['__tmp6'].location = {'gpu': 1}
-    nsdfg.arrays['__tmp6'].storage = StorageType.GPU_Global
-    sdfg.apply_strict_transformations()
-
-    E = sdfg(A=A, B=B, C=C, D=D, M=m, K=k, N=n, L=l, O=o)
-    assert np.allclose(E, (A @ B) @ (C @ D))
     print('PASS')
 
 
@@ -188,14 +142,16 @@ def test_three_matmul():
 
     E = sdfg(A=A, B=B, C=C, D=D, M=m, K=k, N=n, L=l, O=o)
     res = (A @ B) @ (C @ D)
-    idx = zip(*np.where(~np.isclose(E, res, atol=0, rtol=1e-7)))
-    for i in idx:
-        print(i, E[i], res[i])
+    idx = list(zip(*np.where(~np.isclose(E, res, atol=0, rtol=1e-7))))
+    numErrors = len(idx)
+    print("number of errors:", numErrors)
+    if numErrors < 100:
+        for i in idx:
+            print(i, E[i], res[i])
     assert np.allclose(E, res)
     print('PASS')
 
 
 if __name__ == "__main__":
     test_three_matmul()
-    # test_three_matmul_strict()
     # test_matmul()
