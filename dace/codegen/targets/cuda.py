@@ -250,7 +250,7 @@ int __dace_init_cuda({sdfg.name}_t *__state{params}) {{
         // Enable peer access
         for(int j = 0; j < {ngpus}; ++j) {{
             if (i != j) {{
-                {backend}DeviceEnablePeerAccess(gpu_devices[j], 0);
+                DACE_CUDA_CHECK({backend}DeviceEnablePeerAccess(gpu_devices[j], 0));
             }}
         }}
     }}
@@ -576,7 +576,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             raise NotImplementedError
 
     def _get_gpus(self, sdfg: SDFG, default_gpu=-1):
-        """ Checks how many gpus are used in the sdfg and sets the default gpu
+        """ Checks which gpus are used in the sdfg and sets the default gpu
             to the lowest used gpu id if default_gpu=-1, otherwise it sets the
             default to the default_gpu. If no gpus are specified it will use 
             gpu with id=0.
@@ -655,8 +655,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         return gpu_location
 
     def _set_gpu_device(self, state: Union[SDFG, SDFGState],
-                        node_or_array: Union[dt.Data,
-                                             nodes.Node], code: CodeIOStream):
+                        node_or_array_or_id: Union[dt.Data,
+                                             nodes.Node, str], code: CodeIOStream):
         """ Checks if the codegenerator is on the correct device. If it is on
             the correct device it does nothing, otherwise it writes SetDevice
             into the code.
@@ -665,7 +665,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                                   the location parameter.
             :param code: CodeIoStream to which SetDevice is written if needed.
         """
-        gpu_location = self._get_gpu_location(state, node_or_array)
+        gpu_location = self._get_gpu_location(state, node_or_array_or_id)
         if gpu_location != None:
             code.write('%sSetDevice(%s);\n' % (self.backend, gpu_location))
 
@@ -899,6 +899,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             outgoing_memlet = False
         else:
             raise LookupError('Memlet does not point to any of the nodes')
+        
+        src_gpuid = self._get_gpu_location(state_dfg, src_node)
+        dst_gpuid = self._get_gpu_location(state_dfg, dst_node)
 
         if (isinstance(src_node, nodes.AccessNode)
                 and isinstance(dst_node, nodes.AccessNode)
@@ -911,10 +914,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                          and dst_storage in cpu_storage_types)):
             src_location = 'Device' if src_storage == dtypes.StorageType.GPU_Global else 'Host'
             dst_location = 'Device' if dst_storage == dtypes.StorageType.GPU_Global else 'Host'
-            if src_location == 'Device':
-                gpuid = self._get_gpu_location(sdfg, src_node)
-            else:
-                gpuid = self._get_gpu_location(sdfg, dst_node)
+
             # Corner case: A stream is writing to an array
             if (isinstance(sdfg.arrays[src_node.data], dt.Stream)
                     and isinstance(sdfg.arrays[dst_node.data],
@@ -927,21 +927,21 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 Config.get('compiler', 'cuda', 'max_concurrent_streams'))
 
             if hasattr(src_node,
-                       '_cuda_stream') and gpuid in src_node._cuda_stream:
-                cudastream = src_node._cuda_stream[gpuid]
+                       '_cuda_stream') and src_gpuid in src_node._cuda_stream:
+                cudastream = src_node._cuda_stream[src_gpuid]
                 if not hasattr(
                         dst_node,
-                        '_cuda_stream') or not gpuid in dst_node._cuda_stream:
+                        '_cuda_stream') or not dst_gpuid in dst_node._cuda_stream:
                     # Copy after which data is needed by the host
                     is_sync = True
-                elif dst_node._cuda_stream[gpuid] != src_node._cuda_stream[
-                        gpuid]:
-                    syncwith[dst_node._cuda_stream[gpuid]] = edge._cuda_event
+                elif dst_node._cuda_stream[dst_gpuid] != src_node._cuda_stream[
+                        src_gpuid]:
+                    syncwith[dst_node._cuda_stream[dst_gpuid]] = edge._cuda_event
                 else:
                     pass  # Otherwise, no need to synchronize
             elif hasattr(dst_node,
-                         '_cuda_stream') and gpuid in dst_node._cuda_stream:
-                cudastream = dst_node._cuda_stream[gpuid]
+                         '_cuda_stream') and dst_gpuid in dst_node._cuda_stream:
+                cudastream = dst_node._cuda_stream[dst_gpuid]
             else:
                 if max_streams >= 0:
                     print('WARNING: Undefined stream, reverting to default')
@@ -956,16 +956,16 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                         continue
                     if not hasattr(
                             e.dst,
-                            '_cuda_stream') or not gpuid in e.dst._cuda_stream:
+                            '_cuda_stream') or not dst_gpuid in e.dst._cuda_stream:
                         is_sync = True
                     elif not hasattr(e, '_cuda_event'):
                         is_sync = True
-                    elif e.dst._cuda_stream[gpuid] != cudastream:
-                        syncwith[e.dst._cuda_stream[gpuid]] = e._cuda_event
+                    elif e.dst._cuda_stream[dst_gpuid] != cudastream:
+                        syncwith[e.dst._cuda_stream[dst_gpuid]] = e._cuda_event
 
                 if cudastream != 'nullptr':
                     cudastream = '__state->gpu_context->at(%s).streams[%d]' % (
-                        gpuid, cudastream)
+                        src_gpuid, cudastream)
 
             if memlet.wcr is not None:
                 raise NotImplementedError(
@@ -981,8 +981,10 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             dims = len(copy_shape)
 
             # need to check both, as it can be either cpu->gpu or gpu->cpu
-            self._set_gpu_device(sdfg, src_node.desc(sdfg), callsite_stream)
-            self._set_gpu_device(sdfg, dst_node.desc(sdfg), callsite_stream)
+            if src_gpuid == None:
+                callsite_stream.write('%sSetDevice(%s);\n' % (self.backend, dst_gpuid))
+            else:
+                callsite_stream.write('%sSetDevice(%s);\n' % (self.backend, src_gpuid))
 
             dtype = dst_node.desc(sdfg).dtype
 
@@ -1061,12 +1063,12 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 # Synchronize with other streams as necessary
                 for streamid, event in syncwith.items():
                     syncstream = '__state->gpu_context->at(%s).streams[%d]' % (
-                        gpuid, streamid)
+                        dst_gpuid, streamid)
                     callsite_stream.write(
                         '''
     {backend}EventRecord(__state->gpu_context->at({gpu_id}).events[{ev}], {src_stream});
     {backend}StreamWaitEvent({dst_stream}, __state->gpu_context->at({gpu_id}).events[{ev}], 0);
-                    '''.format(gpu_id=gpuid,
+                    '''.format(gpu_id=dst_gpuid,
                                ev=event,
                                src_stream=cudastream,
                                dst_stream=syncstream,
