@@ -1057,20 +1057,26 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 # Synchronize with host (done at destination)
                 pass
             else:
-                # Synchronize with other streams as necessary
-                for streamid, event in syncwith.items():
-                    syncstream = '__state->gpu_context->at(%s).streams[%d]' % (
-                        dst_gpuid, streamid)
+                if src_gpuid != None and dst_gpuid != None:
                     callsite_stream.write(
-                        '''
-    {backend}EventRecord(__state->gpu_context->at({gpu_id}).events[{ev}], {src_stream});
-    {backend}StreamWaitEvent({dst_stream}, __state->gpu_context->at({gpu_id}).events[{ev}], 0);
-                    '''.format(gpu_id=dst_gpuid,
-                               ev=event,
-                               src_stream=cudastream,
-                               dst_stream=syncstream,
-                               backend=self.backend), sdfg, state_id,
-                        [src_node, dst_node])
+                        '%sStreamSynchronize(__state->gpu_context->at(%s).streams[%d]);'
+                        % (self.backend, dst_gpuid, dst_node._cuda_stream[dst_gpuid]), sdfg,
+                        state_id, [src_node, dst_node])
+                else:
+                    # Synchronize with other streams as necessary
+                    for streamid, event in syncwith.items():
+                        syncstream = '__state->gpu_context->at(%s).streams[%d]' % (
+                            dst_gpuid, streamid)
+                        callsite_stream.write(
+                            '''
+        {backend}EventRecord(__state->gpu_context->at({gpu_id}).events[{ev}], {src_stream});
+        {backend}StreamWaitEvent({dst_stream}, __state->gpu_context->at({gpu_id}).events[{ev}], 0);
+                        '''.format(gpu_id=dst_gpuid,
+                                ev=event,
+                                src_stream=cudastream,
+                                dst_stream=syncstream,
+                                backend=self.backend), sdfg, state_id,
+                            [src_node, dst_node])
 
             self._emit_sync(callsite_stream)
 
