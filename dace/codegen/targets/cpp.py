@@ -231,12 +231,11 @@ def emit_memlet_reference(dispatcher,
     """
     desc = sdfg.arrays[memlet.data]
     typedef = conntype.ctype
-    datadef = memlet.data
+    datadef = ptr(memlet.data, desc)
     offset = cpp_offset_expr(desc, memlet.subset)
     offset_expr = '[' + offset + ']'
     is_scalar = not isinstance(conntype, dtypes.pointer)
     ref = ''
-    pointer_name = ptr(pointer_name, desc)
 
     # Get defined type (pointer, stream etc.) and change the type definition
     # accordingly.
@@ -387,10 +386,10 @@ def ndcopy_to_strided_copy(
     # and shapes to the copy. The second condition is there because sometimes
     # the symbolic math engine fails to produce the same expressions for both
     # arrays.
-    if ((src_copylen == copy_length and dst_copylen == copy_length)
+    if (tuple(src_strides) == tuple(dst_strides) and (
+        (src_copylen == copy_length and dst_copylen == copy_length)
             or (tuple(src_shape) == tuple(copy_shape)
-                and tuple(dst_shape) == tuple(copy_shape)
-                and tuple(src_strides) == tuple(dst_strides))):
+                and tuple(dst_shape) == tuple(copy_shape)))):
         # Emit 1D copy of the whole array
         copy_shape = [functools.reduce(lambda x, y: x * y, copy_shape)]
         return copy_shape, [1], [1]
@@ -401,16 +400,34 @@ def ndcopy_to_strided_copy(
         copydim = next(i for i, c in enumerate(copy_shape) if c != 1)
 
         # In source strides
-        if len(copy_shape) == len(src_shape):
+        src_copy_shape = src_subset.size_exact()
+        if copy_shape == src_copy_shape:
             srcdim = copydim
         else:
-            srcdim = next(i for i, c in enumerate(src_shape) if c != 1)
+            try:
+                srcdim = next(i for i, c in enumerate(src_copy_shape) if c != 1)
+            except StopIteration:
+                # NOTE: This is the old stride computation code for FPGA
+                # compatibility
+                if len(copy_shape) == len(src_shape):
+                    srcdim = copydim
+                else:
+                    srcdim = next(i for i, c in enumerate(src_shape) if c != 1)
 
         # In destination strides
-        if len(copy_shape) == len(dst_shape):
+        dst_copy_shape = dst_subset.size_exact()
+        if copy_shape == dst_copy_shape:
             dstdim = copydim
         else:
-            dstdim = next(i for i, c in enumerate(dst_shape) if c != 1)
+            try:
+                dstdim = next(i for i, c in enumerate(dst_copy_shape) if c != 1)
+            except StopIteration:
+                # NOTE: This is the old stride computation code for FPGA
+                # compatibility
+                if len(copy_shape) == len(dst_shape):
+                    dstdim = copydim
+                else:
+                    dstdim = next(i for i, c in enumerate(dst_shape) if c != 1)
 
         # Return new copy
         return [copy_shape[copydim]], [src_strides[srcdim]
@@ -493,6 +510,7 @@ def make_ptr_vector_cast(dst_expr, dst_dtype, src_dtype, is_scalar,
 
 def cpp_ptr_expr(sdfg,
                  memlet,
+                 defined_type,
                  offset=None,
                  relative_offset=True,
                  use_other_subset=False,
@@ -508,7 +526,7 @@ def cpp_ptr_expr(sdfg,
         offset_cppstr = cpp_offset_expr(desc, s, o, indices=indices)
     dname = ptr(memlet.data, desc)
 
-    if isinstance(sdfg.arrays[dname], data.Scalar):
+    if defined_type == DefinedType.Scalar:
         dname = '&' + dname
 
     if offset_cppstr == '0':
@@ -997,7 +1015,8 @@ class DaCeKeywordRemover(ExtNodeTransformer):
         # New subscript is created as a name AST object (rather than a
         # subscript), as otherwise the visitor will recursively descend into
         # the new expression and modify it erroneously.
-        newnode = ast.Name(id="%s[%s]" % (target, sym2cpp(subscript)))
+        defined = set(self.memlets.keys()) | set(self.constants.keys())
+        newnode = ast.Name(id="%s[%s]" % (target, sym2cpp(subscript, defined)))
 
         return ast.copy_location(newnode, node)
 
