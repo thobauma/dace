@@ -915,11 +915,84 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         src_gpuid = self._get_gpu_location(state_dfg, src_node)
         dst_gpuid = self._get_gpu_location(state_dfg, dst_node)
         gpuid = src_gpuid if src_gpuid != None else dst_gpuid
-        # if (isinstance(src_node, nodes.AccessNode)and isinstance(dst_node, nodes.AccessNode) and not self._in_device_code) and src_gpuid != None and dst_gpuid != None and src_gpuid != dst_gpuid):
+        if (isinstance(src_node, nodes.AccessNode)and isinstance(dst_node, nodes.AccessNode) and not self._in_device_code) and (src_gpuid != None and dst_gpuid != None and src_gpuid != dst_gpuid):
+            syncwith = {}  # Dictionary of {stream: event}
+            is_sync = False
+            max_streams = int(
+                Config.get('compiler', 'cuda', 'max_concurrent_streams'))
+
+            if hasattr(src_node,
+                       '_cuda_stream') and src_gpuid in src_node._cuda_stream:
+                cudastream = src_node._cuda_stream[src_gpuid]
+                if not hasattr(
+                        dst_node,
+                        '_cuda_stream') or not dst_gpuid in dst_node._cuda_stream:
+                    # Copy after which data is needed by the host
+                    is_sync = True
+                elif dst_node._cuda_stream[dst_gpuid] != src_node._cuda_stream[
+                        src_gpuid]:
+                    syncwith[dst_node._cuda_stream[dst_gpuid]] = edge._cuda_event
+                else:
+                    pass  # Otherwise, no need to synchronize
+            elif hasattr(dst_node,
+                         '_cuda_stream') and dst_gpuid in dst_node._cuda_stream:
+                cudastream = dst_node._cuda_stream[dst_gpuid]
+            else:
+                if max_streams >= 0:
+                    print('WARNING: Undefined stream, reverting to default')
+                cudastream = 'nullptr'
+
+            # Handle case of impending kernel/tasklet on another stream
+            if max_streams >= 0:
+                for e in state_dfg.out_edges(dst_node):
+                    if isinstance(e.dst, nodes.AccessNode):
+                        continue
+                    if not hasattr(
+                            e.dst,
+                            '_cuda_stream') or not dst_gpuid in e.dst._cuda_stream:
+                        is_sync = True
+                    elif not hasattr(e, '_cuda_event'):
+                        is_sync = True
+                    elif e.dst._cuda_stream[dst_gpuid] != cudastream:
+                        syncwith[e.dst._cuda_stream[dst_gpuid]] = e._cuda_event
+
+                if cudastream != 'nullptr':
+                    cudastream = '__state->gpu_context->at(%s).streams[%d]' % (
+                        gpuid, cudastream)
+
+            # Obtain copy information
+            copy_shape, src_strides, dst_strides, src_expr, dst_expr = (
+                memlet_copy_to_absolute_strides(
+                    self._dispatcher, sdfg, memlet, src_node, dst_node,
+                    self._cpu_codegen._packed_types))
+            dims = len(copy_shape)
+
+            callsite_stream.write('%sSetDevice(%s);\n' % (self.backend, gpuid))
+
+            dtype = dst_node.desc(sdfg).dtype
+
+            # Handle unsupported copy types
+            if dims > 1:
+                raise NotImplementedError('Copies between 2 GPUs are only supported for 1-dimension')
             
-        if (isinstance(src_node, nodes.AccessNode)
+            copysize = ' * '.join([
+                    cppunparse.pyexpr2cpp(symbolic.symstr(s))
+                    for s in copy_shape
+                ])
+            array_length = copysize
+            copysize += ' * sizeof(%s)' % dtype.ctype
+
+            callsite_stream.write(
+                '%sMemcpyPeerAsync(%s, %s, %s, %s, %s, %s);\n' %
+                (self.backend, dst_expr, dst_gpuid, src_expr, src_gpuid, copysize,
+                    cudastream), sdfg, state_id,
+                [src_node, dst_node])
+            
+            
+
+        elif (isinstance(src_node, nodes.AccessNode)
                 and isinstance(dst_node, nodes.AccessNode)
-                and not self._in_device_code and
+                and not self._in_device_code and 
             (src_storage
              in [dtypes.StorageType.GPU_Global, dtypes.StorageType.CPU_Pinned]
              or dst_storage
