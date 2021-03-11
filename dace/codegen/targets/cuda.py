@@ -1001,10 +1001,12 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                         dst_gpuid, streamid)
                     callsite_stream.write(
                         '''
-    {backend}EventRecord(__state->gpu_context->at({gpu_id}).events[{ev}], {src_stream});
+    {backend}EventRecord(__state->gpu_context->at({src_gpuid}).events[{ev}], {src_stream});
     {backend}SetDevice({gpu_id});
     {backend}StreamWaitEvent({dst_stream}, __state->gpu_context->at({gpu_id}).events[{ev}], 0);
-                    '''.format(gpu_id=dst_gpuid,
+                    '''.format(
+                            src_gpuid = src_gpuid,
+                            gpu_id=dst_gpuid,
                             ev=event,
                             src_stream=cudastream,
                             dst_stream=syncstream,
