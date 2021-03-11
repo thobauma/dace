@@ -70,7 +70,7 @@ def gpu_dma_test():
     np.random.seed(0)
     n = 16
     X = np.random.rand(n).astype(np_dtype)
-    alpha = np.random.rand.astype(np_dtype)
+    alpha = np.random.rand()
 
 
     sdfg: dace.SDFG = gpu_dma.to_sdfg(strict=True)
