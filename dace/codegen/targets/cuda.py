@@ -991,7 +991,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             copysize += ' * sizeof(%s)' % dtype.ctype
 
             callsite_stream.write(
-                '%sMemcpyPeerAsync(%s, %s, %s, %s, %s, %s);\n' %
+                'DACE_CUDA_CHECK(%sMemcpyPeerAsync(%s, %s, %s, %s, %s, %s));\n' %
                 (self.backend, dst_expr, dst_gpuid, src_expr, src_gpuid, copysize,
                     cudastream), sdfg, state_id,
                 [src_node, dst_node])
@@ -1001,9 +1001,9 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                         dst_gpuid, streamid)
                     callsite_stream.write(
                         '''
-    {backend}EventRecord(__state->gpu_context->at({src_gpuid}).events[{ev}], {src_stream});
+    DACE_CUDA_CHECK({backend}EventRecord(__state->gpu_context->at({src_gpuid}).events[{ev}], {src_stream}));
     {backend}SetDevice({gpu_id});
-    {backend}StreamWaitEvent({dst_stream}, __state->gpu_context->at({gpu_id}).events[{ev}], 0);
+    DACE_CUDA_CHECK({backend}StreamWaitEvent({dst_stream}, __state->gpu_context->at({gpu_id}).events[{ev}], 0));
                     '''.format(
                             src_gpuid = src_gpuid,
                             gpu_id=dst_gpuid,
