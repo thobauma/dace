@@ -8,6 +8,7 @@
 #include <numeric>
 #include <tuple>
 #include <cstring>
+#include <unordered_map>
 
 // The order in which these are included matters - sorting them
 // alphabetically causes compilation to fail.
@@ -24,7 +25,6 @@
 #include "perf/reporting.h"
 
 #if defined(__CUDACC__) || defined(__HIPCC__)
-#include <unordered_map>
 #include "cuda/cudacommon.cuh"
 #include "cuda/copy.cuh"
 #include "cuda/dynmap.cuh"
