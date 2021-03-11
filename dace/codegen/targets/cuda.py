@@ -1002,6 +1002,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     callsite_stream.write(
                         '''
     {backend}EventRecord(__state->gpu_context->at({gpu_id}).events[{ev}], {src_stream});
+    {backend}SetDevice({gpu_id});
     {backend}StreamWaitEvent({dst_stream}, __state->gpu_context->at({gpu_id}).events[{ev}], 0);
                     '''.format(gpu_id=dst_gpuid,
                             ev=event,
