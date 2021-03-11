@@ -749,12 +749,20 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     delattr(node, '_cuda_stream')
 
         def add_cs_to_location(node, state, gpu):
-            if hasattr(node, '_cuda_stream'):
+            if hasattr(node, 'location') and hasattr(node, '_cuda_stream'):
                 if isinstance(node, nodes.AccessNode):
                     dt=node.desc(state)
                     dt.location['cuda_stream'] = node._cuda_stream[gpu]
                 else:
                     node.location['cuda_stream'] = node._cuda_stream[gpu]
+        
+        def add_ce_to_location(node, state, gpu):
+            if hasattr(node, 'location') and hasattr(node, '_cuda_event'):
+                if isinstance(node, nodes.AccessNode):
+                    dt=node.desc(state)
+                    dt.location['_cuda_event'] = node._cuda_event
+                else:
+                    node.location['_cuda_event'] = node._cuda_event
 
         state_streams = set()
         state_subsdfg_events = []
@@ -825,7 +833,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     if hasattr(node,
                                '_cs_childpath') and gpu in node._cs_childpath:
                         remove_cs_childpath(node, gpu)
-                    curr_stream = get_stream(node)
+                    curr_stream = get_stream(node, gpu)
                     if  curr_stream is not None:
                         add_cs_to_location(node, graph, gpu)
                         state_streams.add(curr_stream)
@@ -987,8 +995,20 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 (self.backend, dst_expr, dst_gpuid, src_expr, src_gpuid, copysize,
                     cudastream), sdfg, state_id,
                 [src_node, dst_node])
-            
-            
+                
+            for streamid, event in syncwith.items():
+                    syncstream = '__state->gpu_context->at(%s).streams[%d]' % (
+                        dst_gpuid, streamid)
+                    callsite_stream.write(
+                        '''
+    {backend}EventRecord(__state->gpu_context->at({gpu_id}).events[{ev}], {src_stream});
+    {backend}StreamWaitEvent({dst_stream}, __state->gpu_context->at({gpu_id}).events[{ev}], 0);
+                    '''.format(gpu_id=dst_gpuid,
+                            ev=event,
+                            src_stream=cudastream,
+                            dst_stream=syncstream,
+                            backend=self.backend), sdfg, state_id,
+                        [src_node, dst_node])
 
         elif (isinstance(src_node, nodes.AccessNode)
                 and isinstance(dst_node, nodes.AccessNode)
