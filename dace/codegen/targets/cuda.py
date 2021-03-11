@@ -749,12 +749,13 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     delattr(node, '_cuda_stream')
 
         def add_cs_to_location(node, state, gpu):
-            if hasattr(node, 'location') and hasattr(node, '_cuda_stream'):
+            if hasattr(node, '_cuda_stream'):
+                cuda_stream = node._cuda_stream[gpu]
                 if isinstance(node, nodes.AccessNode):
-                    dt=node.desc(state)
-                    dt.location['cuda_stream'] = node._cuda_stream[gpu]
-                else:
-                    node.location['cuda_stream'] = node._cuda_stream[gpu]
+                    node = node.desc(state)
+                elif isinstance(node, (nodes.MapEntry, nodes.MapExit)):
+                    node = node.map
+                node.location['cuda_stream'] = cuda_stream
         
         def add_ce_to_location(node, state, gpu):
             if hasattr(node, 'location') and hasattr(node, '_cuda_event'):
@@ -881,7 +882,8 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                     # edge, or the destination is unrelated to CUDA
                     if ((not hasattr(e.dst, '_cuda_stream')
                          or not gpu in e.dst._cuda_stream) or
-                            e.src._cuda_stream[gpu] != e.dst._cuda_stream[gpu]):
+                            e.src._cuda_stream != e.dst._cuda_stream
+                            or len(e.src._cuda_stream)>1):
                         for mpe in state.memlet_path(e):
                             mpe._cuda_event = events
                         events += 1
