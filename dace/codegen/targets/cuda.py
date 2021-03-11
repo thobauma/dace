@@ -934,16 +934,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
             if hasattr(src_node,
                        '_cuda_stream') and src_gpuid in src_node._cuda_stream:
                 cudastream = src_node._cuda_stream[src_gpuid]
-                if not hasattr(
-                        dst_node,
-                        '_cuda_stream') or not dst_gpuid in dst_node._cuda_stream:
-                    # Copy after which data is needed by the host
-                    is_sync = True
-                elif dst_node._cuda_stream[dst_gpuid] != src_node._cuda_stream[
-                        src_gpuid]:
-                    syncwith[dst_node._cuda_stream[dst_gpuid]] = edge._cuda_event
-                else:
-                    pass  # Otherwise, no need to synchronize
+                syncwith[dst_node._cuda_stream[dst_gpuid]] = edge._cuda_event
             elif hasattr(dst_node,
                          '_cuda_stream') and dst_gpuid in dst_node._cuda_stream:
                 cudastream = dst_node._cuda_stream[dst_gpuid]
